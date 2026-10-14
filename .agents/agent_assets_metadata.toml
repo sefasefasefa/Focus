@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Ul4YPkKLUdMjbCfEyfCoU"
+uri = "file://generated-artifacts/Takipci-Paneli-1.0.147-gonderi-duzeltmesi.zip"
+type = "unspecified"
+title = "Takipçi Paneli 1.0.147 — gönderi düzeltmesi"
+description = "Posts sorgu varyantlarını destekleyen, hedef kullanıcı adını dinamik kullanan güncellenmiş tarayıcı eklentisi ZIP paketi."
+logical_id = "29dc1f05-8976-452d-8577-278827922f6d"
+content_hash = "sha256:7a29360a1c4c785391ac3aeca7af9a9d27086dd6e049f027f11088b805cd1413"
+size = 401052
+mtime_ms = 1791976035731
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:71e3bd8b-2dcd-4edb-96fd-2b89dfbd9f23/29dc1f05-8976-452d-8577-278827922f6d/f8f08c2d-ddba-4315-8465-db6afee30580"
+storage_version_token = "1791976076557322"
+content_type = "application/octet-stream"
