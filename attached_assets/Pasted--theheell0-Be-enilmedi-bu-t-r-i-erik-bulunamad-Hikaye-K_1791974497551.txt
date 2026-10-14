@@ -1,0 +1,10 @@
+🎬
+@theheell0
+Beğenilmedi — bu tür içerik bulunamadı
+🎬 Hikaye · Kontrol
+14/10 13:41
+—
+📸
+@theheell0
+Geçici yanıt — kısa süre sonra yeniden denenecek: Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/theheell0/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel=\"icon\" sizes=\"192x192\" href=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" /><title>Instagram</title><meta name=\"bingbot\" content=\"noarchive\" /><meta name=\"robots\" content=\"noarchive, noimageindex\" /><meta charset=\"utf-8\" /><meta name=\"apple-mobile-web-app-status-bar-style\" content=\"default\" /><meta name=\"mobile-web-app-capable\" content=\"yes\" /><meta id=\"viewport\" name=\"viewport\" content=\"width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=2, viewport-fit=cover\" /><link rel=\"preconnect\" href=\"https://scontent-fra3-2.cdninstagram.com\" /><link rel=\"dns-prefetch\" href=\"https://scontent-fra3-2.cdninstagram.com\" /><meta name=\"theme-color\" content=\"#ffffff\" /><meta name=\"theme-color\" content=\"#000000\" media=\"(prefers-color-scheme: dark)\" /><link rel=\"apple-touch-icon\" sizes=\"76x76\" href=\"https://static.cdninstagram.com/rsrc.php/yj/r/f01UdNyJjJj.webp\" /><link rel=\"apple-touch-icon\" sizes=\"120x120\" href=\"https://static.cdninstagram.com/rsrc.php/yL/r/mMvhX4currF.webp\" /><link rel=\"apple-touch-icon\" sizes=\"152x152\" href=\"https://static.cdninstagram.com/rsrc.php/yY/r/5OCV_xUyQ5h.webp\" /><link rel=\"apple-touch-icon\" sizes=\"167x167\" href=\"https://static.cdninstagram.com/rsrc.php/y9/r/MptwNl-B2pS.webp\" /><link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"https://static.cdninstagram.com/rsrc.php/yw/r"}
+📸 Gönderi 

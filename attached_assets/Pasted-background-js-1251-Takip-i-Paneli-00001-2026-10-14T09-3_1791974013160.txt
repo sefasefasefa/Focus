@@ -1,0 +1,619 @@
+background.js:1251 [Takipçi Paneli #00001] 2026-10-14T09:36:18.752Z Profil GraphQL yenilemesi başarısız {"tabId":1851157771,"error":"Instagram profil GraphQL operasyonu henüz yakalanmadı"}
+writeExtensionConsole @ background.js:1251
+background.js:1251 [Takipçi Paneli #00002] 2026-10-14T09:36:19.128Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/21528020968/followers/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00003] 2026-10-14T09:36:23.017Z Kullanıcı profiline girildi {"username":"@lashes_by_marisabelle","userId":"21528020968","action":"profil verisi alındı"}
+background.js:1251 [Takipçi Paneli #00004] 2026-10-14T09:36:29.068Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/21528020968/followers/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00005] 2026-10-14T09:36:31.062Z Profil sekmesi GraphQL fallback başarılı {"tabId":1851157771,"userId":"21528020968","username":"lashes_by_marisabelle","followerCount":2052,"followingCount":2381,"mediaCount":76}
+background.js:1251 [Takipçi Paneli #00006] 2026-10-14T09:36:31.309Z Keşif | Otomatik keşif açıldı {"phase":"discovery","sourceId":"(değişmedi)","sourceUsername":"(kullanıcı adı bilinmiyor)","relation":"followers","targetGender":"female","nextRunInSeconds":7,"action":"planlanan turda kaynak listesi taranacak"}
+background.js:1251 [Takipçi Paneli #00007] 2026-10-14T09:36:36.436Z Keşif | Otomatik keşif açıldı {"phase":"discovery","sourceId":"(değişmedi)","sourceUsername":"mihrikarakoyun","relation":"followers","targetGender":"female","nextRunInSeconds":7,"action":"planlanan turda kaynak listesi taranacak"}
+background.js:1251 [Takipçi Paneli #00008] 2026-10-14T09:36:38.368Z Keşif | Otomatik keşif kapatıldı {"phase":"discovery","sourceId":"(değişmedi)","sourceUsername":"(kullanıcı adı bilinmiyor)","relation":"(değişmedi)","targetGender":"(değişmedi)","nextRunInSeconds":0,"action":"yeni tarama yapılmayacak"}
+background.js:1251 [Takipçi Paneli #00009] 2026-10-14T09:36:39.064Z Keşif | Otomatik keşif açıldı {"phase":"discovery","sourceId":"(değişmedi)","sourceUsername":"mihrikarakoyun","relation":"followers","targetGender":"female","nextRunInSeconds":7,"action":"planlanan turda kaynak listesi taranacak"}
+background.js:1253 [Takipçi Paneli #00010] 2026-10-14T09:36:50.914Z getFollowing CS hata: Could not establish connection. Receiving end does not exist.
+writeExtensionConsole @ background.js:1253
+appendDebugLog @ background.js:1273
+getFollowing @ background.js:2332
+setTimeout
+(anonymous) @ background.js:938
+sleep @ background.js:938
+waitForInstagramContentScript @ background.js:2428
+background.js:1251 [Takipçi Paneli #00011] 2026-10-14T09:37:21.272Z Instagram sayfa fetch fallback kullanılamadı {"endpoint":"/api/v1/friendships/21528020968/following/","method":"GET","error":"Could not establish connection. Receiving end does not exist."}
+background.js:1251 [Takipçi Paneli #00012] 2026-10-14T09:37:21.275Z Instagram beklenmeyen HTML sayfası döndürdü (durum 572, geçici yönlendirme/throttle olabilir): {"title":null,"respUrl":"https://www.instagram.com/api/v1/friendships/21528020968/following/?count=50","redirected":false,"requestedUrl":"https://www.instagram.com/api/v1/friendships/21528020968/following/?count=50","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":""} {"endpoint":"/api/v1/friendships/21528020968/following/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+getFollowing @ background.js:2348
+setTimeout
+(anonymous) @ background.js:938
+sleep @ background.js:938
+waitForInstagramContentScript @ background.js:2428
+background.js:1251 [Takipçi Paneli #00013] 2026-10-14T09:37:21.279Z Instagram beklenmeyen HTML sayfası döndürdü (durum 572, geçici yönlendirme/throttle olabilir): {"title":null,"respUrl":"https://www.instagram.com/api/v1/friendships/21528020968/following/?count=50","redirected":false,"requestedUrl":"https://www.instagram.com/api/v1/friendships/21528020968/following/?count=50","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":""} {"phase":"following","rateLimit":false,"sessionExpired":false,"challenge":false,"accessBlocked":false,"consecutiveErrors":1,"backoffMinutes":30}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+runAutolikeTick @ background.js:5986
+background.js:416 [+] YAKALANDI 17x doc_id | son: 28036671149327607 | liste: 28036671149327607 (3x), 28542612348729311 (2x), 26673487622279953 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 27647971824866335 (1x), 27657376130569675 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+background.js:1251 [Takipçi Paneli #00014] 2026-10-14T09:42:10.630Z Kullanıcı profiline girildi {"username":"@mihrikarakoyun","userId":"412088344","action":"profil verisi alındı"}
+background.js:1251 [Takipçi Paneli #00015] 2026-10-14T09:42:11.933Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:416 [+] YAKALANDI 22x doc_id | son: 28036671149327607 | liste: 28036671149327607 (4x), 26673487622279953 (4x), 28542612348729311 (2x), 27657376130569675 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 26821612144133136 (1x), 27647971824866335 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+background.js:1251 [Takipçi Paneli #00016] 2026-10-14T09:51:21.386Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:416 [+] YAKALANDI 22x doc_id | son: 28036671149327607 | liste: 28036671149327607 (4x), 26673487622279953 (4x), 28542612348729311 (2x), 27657376130569675 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 26821612144133136 (1x), 27647971824866335 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+background.js:1251 [Takipçi Paneli #00017] 2026-10-14T09:58:50.339Z Kullanıcı profiline girildi {"username":"@mihrikarakoyun","userId":"412088344","action":"profil verisi alındı"}
+background.js:1251 [Takipçi Paneli #00018] 2026-10-14T09:58:51.730Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:416 [+] YAKALANDI 21x doc_id | son: 28036671149327607 | liste: 28036671149327607 (4x), 26673487622279953 (4x), 28542612348729311 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 26821612144133136 (1x), 27647971824866335 (1x), 27657376130569675 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+background.js:1251 [Takipçi Paneli #00019] 2026-10-14T10:07:17.190Z getFollowing (CS): sayfa 1 — 50 ham, 50 toplam {"responseKeys":["users","big_list","page_size","next_max_id","has_more","should_limit_list_of_followers","use_clickable_see_more","show_spam_follow_request_tab","follow_ranking_token","should_limit_list_of_followings","hidden_following_account_count","status"],"sampleUser":["fbid_v2","pk","pk_id","id","third_party_downloads_enabled","strong_id__","full_name","is_private","is_verified","profile_pic_id","profile_pic_url","username","account_badges","has_anonymous_profile_picture","latest_reel_media","is_favorite"]}
+background.js:1251 [Takipçi Paneli #00020] 2026-10-14T10:07:26.739Z getFollowing (CS): sayfa 2 — 50 ham, 100 toplam {"responseKeys":["users","big_list","page_size","next_max_id","has_more","should_limit_list_of_followers","use_clickable_see_more","show_spam_follow_request_tab","follow_ranking_token","should_limit_list_of_followings","hidden_following_account_count","status"],"sampleUser":["fbid_v2","pk","pk_id","id","third_party_downloads_enabled","strong_id__","full_name","is_private","is_verified","profile_pic_id","profile_pic_url","username","account_badges","has_anonymous_profile_picture","latest_reel_media","is_favorite"]}
+background.js:1251 [Takipçi Paneli #00021] 2026-10-14T10:07:30.403Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:1251 [Takipçi Paneli #00022] 2026-10-14T10:07:36.790Z getFollowing (CS): sayfa 3 — 50 ham, 150 toplam {"responseKeys":["users","big_list","page_size","next_max_id","has_more","should_limit_list_of_followers","use_clickable_see_more","show_spam_follow_request_tab","follow_ranking_token","should_limit_list_of_followings","hidden_following_account_count","status"],"sampleUser":["fbid_v2","pk","pk_id","id","third_party_downloads_enabled","strong_id__","full_name","is_private","is_verified","profile_pic_id","profile_pic_url","username","account_badges","has_anonymous_profile_picture","latest_reel_media","is_favorite"]}
+background.js:1251 [Takipçi Paneli #00023] 2026-10-14T10:07:46.736Z getFollowing (CS): sayfa 4 — 50 ham, 200 toplam {"responseKeys":["users","big_list","page_size","next_max_id","has_more","should_limit_list_of_followers","use_clickable_see_more","show_spam_follow_request_tab","follow_ranking_token","should_limit_list_of_followings","hidden_following_account_count","status"],"sampleUser":["fbid_v2","pk","pk_id","id","third_party_downloads_enabled","strong_id__","full_name","is_private","is_verified","profile_pic_id","profile_pic_url","username","account_badges","has_anonymous_profile_picture","latest_reel_media","is_favorite"]}
+background.js:1251 [Takipçi Paneli #00024] 2026-10-14T10:07:46.742Z Bay/kadın cinsiyet kontrolü başladı {"candidateCount":200,"pendingCount":200,"candidates":["@fatoskatip","@gathystorm","@g.hakim.02.12.94","@ayselolmez__","@asellll1993","@ozgebertiz","@ayyldzakyol777","@yulash.yulia","@yulash.beautystudio","@madina_azhibekova90","@batunergizs","@selin_ozanoglu","@marisabelle0309","@tatiana_cy","@tuggbayaman","@vesta_beauty_girne","@ilonushka1_","@sennylmz","@selyaasvsh","@aksana.ipek","@yanagr3583","@notrii_02","@goncaegemen_ates","@jovana.jovi.jo","@muniradj","@uumitakayy","@tatyana_nails_cyprus","@viktoria_kominar","@svitlana_akinci","@anju_ewahang_limbu","@slanbekovva_","@iileydaa.000","@tektasgizem","@latifenesiluysal","@busedlu","@nezaketsavas52","@yulia_yesim","@88_nasipkam","@msungri","@phi.maryalizadeh","@marybeauty.artist","@rsphilaa","@sudekklkc","@aylaahass","@nnehirk_","@gulcnatak","@khvan_kxx_zhanna","@one_pure_lady","@meral.kartall","@zsbb1_","@mekselinabyt","@here.now26","@cosmetologgirne","@diyana_sert","@_darya__belka_","@lena_larina19","@busecckkrrr","@hazanmamacita","@eceetay","@kateryna.di._","@iremsancaktarr0","@theheell0","@yuliareyhanbugaeva","@merve.eryazgan","@sunny.nails.cy","@anna.yoga.cyprus","@ecenur.saynn","@connected_hearts20","@iremariy","@masha.alyeva","@24_sabi_tr","@ellamilingert","@_melikeunn","@miss__jika","@jibekazimkanova","@leranaiils","@lyudochkalulu","@kbrakrkya01","@hamide_songur","@rose_0726_","@leyla05071998","@jama.ahmedova","@islimcskn","@ruhsankaptanoglu","@melty_poyraz","@___niniii27","@ayti.blondie","@mihrikarakoyun","@larasabaz","@gizeemeezgii","@nepesownaseker","@perikalnazarova","@pembe_ozksa","@gozdemyyy14_02","@contecyprusofficial","@sahida746","@nail_girne_studio2024","@lashes__girne","@boikova7246","@nargiz_imenzhanova","@kurniawati871","@sultann._73","@aycemal.xd4","@yagmur_bozoglann","@islek_eda","@cansuaksll","@jahanhatamova","@39zorwomen","@aigerim__nurgazina","@akseniahairstilist","@the.dariaaaaaa","@amber_eker","@milingert","@adi.mozza","@derin_laila","@haticeture_","@super_saniya555","@abozhalakova","@esila_ozturkmen","@groggylounge.girne","@rabia__blue","@hiztemiz","@aminela251","@helen.cakir","@beyzossscyp","@be_lakshhmi","@n_huk_7","@e.ecem7","@elena_smirnv","@elmiraa_achilova","@juls_arta","@buwseell","@innessceliker","@shakhrezada_22_","@rozadilmuradowa","@_lesya.m__","@swimwear.cyp","@miraida.r","@___kris1__","@cansuyesirgil","@iremozkannn__","@simelkrk","@gulzhihan_abdygaliyeva","@janna_gurduz","@ufmsas2709","@auicenna","@aziza_zhenishbekova","@zhrsynygt","@mugaltuna","@yaz33155","@batir_dinara","@alyonapustovoitenko","@beguumsarii","@aylinn.snl","@mayisaahmedova","@tgaychenya","@hdinccetin","@iradedevlet","@ozgul.kesici.7","@mariariaaaam","@derinkrdl","@eyelashesbyzu","@beauty_studio_by_feruza","@blysza","@n.duyguk","@viktoria_secret222","@nadine_romanenko","@irem.0527","@evgenia_zhm","@hamidegun24","@cennet_08.94","@violett.75_","@yagmur.osmnogulari","@ozlemq7","@pnar_yolcu","@tpkmelk_23_melike","@_maria_batrincea_","@edisamtress","@znurmamedova","@karoverga","@nr.asli_","@beyza_selin08","@dilaraaaa.777","@yanulik__","@zehratahirogluu","@miraa_moments_","@gauhar_2440","@mariaskorn.mua","@mukadas579","@aizatalant","@ruya00buse","@aidatologonova","@nails_by_aylara_cy","@saremnz.svn","@aylinimasil","@tatsiana_ilyasova9","@_safiyetzc_","@kazanina_d","@tekndemrdamla","@jiza2009jiza"],"profilePhotoCount":200,"action":"kullanıcı adı, profil metni ve mevcut profil fotoğrafı analiz ediliyor"}
+background.js:416 [+] YAKALANDI 21x doc_id | son: 28036671149327607 | liste: 28036671149327607 (4x), 26673487622279953 (3x), 28542612348729311 (2x), 27657376130569675 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 26821612144133136 (1x), 27647971824866335 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+gender-logic.js:210 [Takipçi Paneli] Gemini 503; tek yeniden deneme yapılacak {model: 'gemini-3.5-flash-lite', delayMs: 30000}
+fetchGeminiWithProviderRetry @ gender-logic.js:210
+await in fetchGeminiWithProviderRetry
+classifyGenderUsers @ gender-logic.js:840
+await in classifyGenderUsers
+classifyGenderInBackground @ background.js:206
+await in classifyGenderInBackground
+getFollowing @ background.js:2307
+await in getFollowing
+runAutolikeTick @ background.js:5955
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00025] 2026-10-14T10:12:04.967Z Bay/kadın cinsiyet kontrolü tamamlandı {"candidateCount":200,"femaleCount":188,"maleCount":2,"unknownCount":10,"classificationErrorCount":2,"uniqueClassificationErrorCount":1,"classificationErrors":["AI sonucu belirsiz; isim sinyali kullanıldı"],"action":"Gemini API, env.js içindeki anahtarla doğrudan kullanıldı"}
+background.js:1251 [Takipçi Paneli #00026] 2026-10-14T10:12:04.990Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@_maria_batrincea_","@zhrsynygt"]}
+background.js:1251 [Takipçi Paneli #00027] 2026-10-14T10:12:05.389Z Hikaye kontrolü tamamlandı {"username":"_maria_batrincea_","found":1,"unliked":1,"reasonCode":"unliked_available","reason":"1 hikaye bulundu, 1 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00028] 2026-10-14T10:12:15.337Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/8437226844/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00029] 2026-10-14T10:12:15.341Z Beğeni öncesi canlı takip kontrolü geçti {"username":"_maria_batrincea_","candidateId":"8437226844","contentType":"story","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00030] 2026-10-14T10:12:27.819Z story beğeni mutation başarılı - onaylandı {"operation":"usePolarisStoriesV4LikeMutationLikeMutation","docId":"26938887309082050","mediaId":"4007604927060602409","responseKeys":["data","extensions"],"mutationResultKeys":["__typename"],"typename":"XIGSendStoryLikeResponsePayload"}
+background.js:1251 [Takipçi Paneli #00031] 2026-10-14T10:12:27.823Z Hikaye beğenildi: @_maria_batrincea_ {"type":"story","mediaId":"4007604927060602409","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00032] 2026-10-14T10:12:27.829Z Keşif | Beğeni atılan kullanıcıya girildi {"phase":"discovery","sourceAccount":"@_maria_batrincea_","sourceId":"8437226844","action":"takip ettikleri listesi açılacak"}
+background.js:1251 [Takipçi Paneli #00033] 2026-10-14T10:12:27.834Z Keşif | Beğeni sonrası takip edilenler taranıyor {"phase":"discovery","sourceAccount":"@_maria_batrincea_","sourceId":"8437226844","endpoint":"/api/v1/friendships/8437226844/following/","action":"takip edilen hesaplar alınacak ve cinsiyetleri sınıflandırılacak"}
+background.js:1251 [Takipçi Paneli #00034] 2026-10-14T10:12:36.091Z Keşif | Takip listesi çekildi {"phase":"discovery","userId":"8437226844","relation":"following","endpoint":"/api/v1/friendships/8437226844/following/","rawCount":50,"uniqueCount":50,"action":"takip edilenler hazır"}
+background.js:1251 [Takipçi Paneli #00035] 2026-10-14T10:12:45.394Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/144465085/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00036] 2026-10-14T10:12:45.398Z Keşif | Adayın takip edilmediği doğrulandı; ortak hesap kontrolü başlıyor {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@basikbekiroglu","candidateId":"144465085","action":"mutual eşiği geçerse cinsiyet kontrolü yapılacak"}
+background.js:1251 [Takipçi Paneli #00037] 2026-10-14T10:12:55.222Z Keşif | Ortak hesaplara bakıldı {"phase":"discovery","targetId":"144465085","endpoint":"/api/v1/friendships/144465085/mutual_followers/","mutualCount":2,"returnedUserCount":2,"action":"ortak hesap sayısı alındı"}
+background.js:1251 [Takipçi Paneli #00038] 2026-10-14T10:12:55.226Z Keşif | Aday ortak hesap sayısıyla eşleşti; cinsiyet kontrolü başlıyor {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@basikbekiroglu","candidateId":"144465085","mutualCount":2,"expected":2,"action":"cinsiyet analizi tamamlanırsa hedef cinsiyete göre takip isteği değerlendirilecek"}
+background.js:1251 [Takipçi Paneli #00039] 2026-10-14T10:12:55.238Z Bay/kadın cinsiyet kontrolü başladı {"candidateCount":1,"pendingCount":1,"candidates":["@basikbekiroglu"],"profilePhotoCount":1,"action":"kullanıcı adı, profil metni ve mevcut profil fotoğrafı analiz ediliyor"}
+background.js:1251 [Takipçi Paneli #00040] 2026-10-14T10:13:02.643Z Bay/kadın cinsiyet kontrolü tamamlandı {"candidateCount":1,"femaleCount":0,"maleCount":1,"unknownCount":0,"classificationErrorCount":0,"uniqueClassificationErrorCount":0,"classificationErrors":[],"action":"Gemini API, env.js içindeki anahtarla doğrudan kullanıldı"}
+background.js:1251 [Takipçi Paneli #00041] 2026-10-14T10:13:02.655Z Keşif | Adayın cinsiyet kontrolü tamamlandı {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@basikbekiroglu","candidateId":"144465085","mutualCount":2,"gender":"male","targetGender":"female","matchesTargetGender":false,"action":"hedef cinsiyet (kadın) eşleşmedi; sonraki aday kontrol edilecek"}
+background.js:1251 [Takipçi Paneli #00042] 2026-10-14T10:13:05.353Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/269963475/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00043] 2026-10-14T10:13:05.357Z Keşif | Adayın takip edilmediği doğrulandı; ortak hesap kontrolü başlıyor {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@burcu_onc","candidateId":"269963475","action":"mutual eşiği geçerse cinsiyet kontrolü yapılacak"}
+background.js:1251 [Takipçi Paneli #00044] 2026-10-14T10:13:15.293Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@anju_ewahang_limbu","@rose_0726_"]}
+background.js:1251 [Takipçi Paneli #00045] 2026-10-14T10:13:16.137Z Hikaye kontrolü tamamlandı {"username":"anju_ewahang_limbu","found":11,"unliked":3,"reasonCode":"unliked_available","reason":"11 hikaye bulundu, 3 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00046] 2026-10-14T10:13:25.615Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/6791694526/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00047] 2026-10-14T10:13:25.620Z Beğeni öncesi canlı takip kontrolü geçti {"username":"anju_ewahang_limbu","candidateId":"6791694526","contentType":"story","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00048] 2026-10-14T10:13:28.481Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:1251 [Takipçi Paneli #00049] 2026-10-14T10:13:38.322Z story beğeni mutation başarılı - onaylandı {"operation":"usePolarisStoriesV4LikeMutationLikeMutation","docId":"26938887309082050","mediaId":"4007231960748941090","responseKeys":["data","extensions"],"mutationResultKeys":["__typename"],"typename":"XIGSendStoryLikeResponsePayload"}
+background.js:1251 [Takipçi Paneli #00050] 2026-10-14T10:13:38.329Z Hikaye beğenildi: @anju_ewahang_limbu {"type":"story","mediaId":"4007231960748941090","action":"beğeni gönderildi"}
+background.js:416 [+] YAKALANDI 24x doc_id | son: 28036671149327607 | liste: 28036671149327607 (4x), 26673487622279953 (3x), 28026812547006985 (2x), 26938887309082050 (2x), 28542612348729311 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 26821612144133136 (1x), 27647971824866335 (1x), 27657376130569675 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+background.js:1251 [Takipçi Paneli #00051] 2026-10-14T10:15:15.292Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@the.dariaaaaaa","@leyla05071998"]}
+background.js:1251 [Takipçi Paneli #00052] 2026-10-14T10:15:15.500Z Hikaye kontrolü tamamlandı {"username":"the.dariaaaaaa","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00053] 2026-10-14T10:15:25.475Z Hikaye kontrolü tamamlandı {"username":"leyla05071998","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00054] 2026-10-14T10:15:37.936Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/8506980283/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00055] 2026-10-14T10:15:37.943Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/8506980283/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel=\"icon\"  {"endpoint":"/api/v1/feed/user/8506980283/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1963
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00056] 2026-10-14T10:15:37.950Z Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor {"username":"the.dariaaaaaa","endpoint":"/api/v1/feed/user/8506980283/"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1970
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00057] 2026-10-14T10:15:47.662Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/the.dariaaaaaa/username/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00058] 2026-10-14T10:15:47.670Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/the.dariaaaaaa/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\"  {"endpoint":"/api/v1/feed/user/the.dariaaaaaa/username/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1980
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00059] 2026-10-14T10:15:47.678Z Gönderi kullanıcı adı adresi geçici yanıt verdi {"username":"the.dariaaaaaa","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/the.dari"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1988
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00060] 2026-10-14T10:15:47.694Z Gönderi GraphQL yedeği kullanılamadı; güncel Posts bağlantı işlemi yakalanmamış {"username":"the.dariaaaaaa","captured":true,"capturedOperation":"PolarisProfilePostsQuery","hasVariables":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:2010
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00061] 2026-10-14T10:15:47.706Z Gönderi geçici hata verdi; Reels yedeğine geçiliyor {"username":"the.dariaaaaaa","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/the.dari"}
+background.js:1251 [Takipçi Paneli #00062] 2026-10-14T10:15:47.716Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/the.dariaaaaaa/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\"  {"username":"the.dariaaaaaa","contentType":"post","reasonCode":"request_error"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+runAutolikeTick @ background.js:6254
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00063] 2026-10-14T10:15:47.727Z Reels kontrol aşaması başladı {"candidates":["@the.dariaaaaaa","@leyla05071998"],"postRetryPending":true}
+background.js:1251 [Takipçi Paneli #00064] 2026-10-14T10:15:55.461Z Reels kontrolü tamamlandı {"username":"the.dariaaaaaa","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram reels yanıtı boş döndü; bu hesapta erişilebilir reels bulunamadı"}
+background.js:1251 [Takipçi Paneli #00065] 2026-10-14T10:16:05.822Z Reels kontrolü tamamlandı {"username":"leyla05071998","found":1,"unliked":1,"reasonCode":"unliked_available","reason":"1 reels bulundu, 1 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00066] 2026-10-14T10:16:15.719Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/33262386211/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00067] 2026-10-14T10:16:15.725Z Beğeni öncesi canlı takip kontrolü geçti {"username":"leyla05071998","candidateId":"33262386211","contentType":"reel","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00068] 2026-10-14T10:16:25.839Z reel beğeni mutation başarılı - onaylandı {"operation":"PolarisAPILikePostMutation","docId":"28051398997871885","mediaId":"3982307425036502643","responseKeys":["data","extensions"],"mutationResultKeys":["media"],"has_liked":true}
+background.js:1251 [Takipçi Paneli #00069] 2026-10-14T10:16:25.846Z Reel beğenildi: @leyla05071998 {"type":"reel","mediaId":"3982307425036502643","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00070] 2026-10-14T10:17:15.295Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@hdinccetin","@g.hakim.02.12.94"]}
+background.js:1251 [Takipçi Paneli #00071] 2026-10-14T10:17:15.485Z Hikaye kontrolü tamamlandı {"username":"hdinccetin","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00072] 2026-10-14T10:17:25.538Z Hikaye kontrolü tamamlandı {"username":"g.hakim.02.12.94","found":1,"unliked":0,"reasonCode":"all_liked","reason":"1 hikaye bulundu; tamamı daha önce beğenilmiş"}
+background.js:1251 [Takipçi Paneli #00073] 2026-10-14T10:17:38.036Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/1564695121/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00074] 2026-10-14T10:17:38.043Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/1564695121/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel=\"icon\"  {"endpoint":"/api/v1/feed/user/1564695121/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1963
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00075] 2026-10-14T10:17:38.050Z Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor {"username":"hdinccetin","endpoint":"/api/v1/feed/user/1564695121/"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1970
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00076] 2026-10-14T10:17:48.270Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/hdinccetin/username/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00077] 2026-10-14T10:17:48.278Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/hdinccetin/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel= {"endpoint":"/api/v1/feed/user/hdinccetin/username/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1980
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00078] 2026-10-14T10:17:48.285Z Gönderi kullanıcı adı adresi geçici yanıt verdi {"username":"hdinccetin","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/hdinccet"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1988
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00079] 2026-10-14T10:17:48.295Z Gönderi GraphQL yedeği kullanılamadı; güncel Posts bağlantı işlemi yakalanmamış {"username":"hdinccetin","captured":true,"capturedOperation":"PolarisProfilePostsQuery","hasVariables":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:2010
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00080] 2026-10-14T10:17:48.303Z Gönderi geçici hata verdi; Reels yedeğine geçiliyor {"username":"hdinccetin","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/hdinccet"}
+background.js:1251 [Takipçi Paneli #00081] 2026-10-14T10:17:48.314Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/hdinccetin/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel= {"username":"hdinccetin","contentType":"post","reasonCode":"request_error"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+runAutolikeTick @ background.js:6254
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00082] 2026-10-14T10:17:48.323Z Reels kontrol aşaması başladı {"candidates":["@hdinccetin","@g.hakim.02.12.94"],"postRetryPending":true}
+background.js:1251 [Takipçi Paneli #00083] 2026-10-14T10:17:55.935Z Reels kontrolü tamamlandı {"username":"hdinccetin","found":12,"unliked":12,"reasonCode":"unliked_available","reason":"12 reels bulundu, 12 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00084] 2026-10-14T10:18:05.515Z Keşif | Ortak hesaplara bakıldı {"phase":"discovery","targetId":"269963475","endpoint":"/api/v1/friendships/269963475/mutual_followers/","mutualCount":4,"returnedUserCount":4,"action":"ortak hesap sayısı alındı"}
+background.js:1251 [Takipçi Paneli #00085] 2026-10-14T10:18:05.521Z Keşif | Aday ortak hesap sayısıyla eşleşti; cinsiyet kontrolü başlıyor {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@burcu_onc","candidateId":"269963475","mutualCount":4,"expected":2,"action":"cinsiyet analizi tamamlanırsa hedef cinsiyete göre takip isteği değerlendirilecek"}
+background.js:1251 [Takipçi Paneli #00086] 2026-10-14T10:18:05.534Z Bay/kadın cinsiyet kontrolü başladı {"candidateCount":1,"pendingCount":1,"candidates":["@burcu_onc"],"profilePhotoCount":1,"action":"kullanıcı adı, profil metni ve mevcut profil fotoğrafı analiz ediliyor"}
+background.js:1251 [Takipçi Paneli #00087] 2026-10-14T10:18:12.694Z Bay/kadın cinsiyet kontrolü tamamlandı {"candidateCount":1,"femaleCount":1,"maleCount":0,"unknownCount":0,"classificationErrorCount":0,"uniqueClassificationErrorCount":0,"classificationErrors":[],"action":"Gemini API, env.js içindeki anahtarla doğrudan kullanıldı"}
+background.js:1251 [Takipçi Paneli #00088] 2026-10-14T10:18:12.707Z Keşif | Adayın cinsiyet kontrolü tamamlandı {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@burcu_onc","candidateId":"269963475","mutualCount":4,"gender":"female","targetGender":"female","matchesTargetGender":true,"action":"takip isteği öncesi canlı takip durumu yeniden doğrulanacak"}
+background.js:1251 [Takipçi Paneli #00089] 2026-10-14T10:18:15.674Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/1564695121/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00090] 2026-10-14T10:18:15.682Z Beğeni öncesi canlı takip kontrolü geçti {"username":"hdinccetin","candidateId":"1564695121","contentType":"reel","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00091] 2026-10-14T10:18:25.636Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/269963475/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00092] 2026-10-14T10:18:25.652Z Keşif | Kadın aday için takip isteği gönderiliyor {"phase":"discovery-follow","gender":"female","candidate":"@burcu_onc","candidateId":"269963475","relation":"following","method":"POST","endpoint":"/api/v1/friendships/create/269963475/","quotaBeforeSend":0}
+background.js:1251 [Takipçi Paneli #00093] 2026-10-14T10:18:36.207Z reel beğeni mutation başarılı - onaylandı {"operation":"PolarisAPILikePostMutation","docId":"28051398997871885","mediaId":"3931939029405655036","responseKeys":["data","extensions"],"mutationResultKeys":["media"],"has_liked":true}
+background.js:1251 [Takipçi Paneli #00094] 2026-10-14T10:18:36.215Z Reel beğenildi: @hdinccetin {"type":"reel","mediaId":"3931939029405655036","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00095] 2026-10-14T10:18:46.281Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/create/269963475/","method":"POST"}
+background.js:1251 [Takipçi Paneli #00096] 2026-10-14T10:18:46.294Z Keşif | Kadın aday için takip isteği gönderildi: @burcu_onc {"phase":"discovery-follow","gender":"female","candidateId":"269963475","following":false,"outgoingRequest":true,"dailyUsed":1,"dailyRemaining":839,"action":"Instagram giden takip isteğini doğruladı; durum kaydedildi"}
+background.js:1251 [Takipçi Paneli #00097] 2026-10-14T10:18:46.303Z Keşif | Beğeni sonrası ortak hesap akışı tamamlandı {"phase":"discovery","sourceAccount":"@_maria_batrincea_","candidate":"@burcu_onc","candidateId":"269963475","mutualCount":4,"gender":"female","targetGender":"female","followStatus":"sent","action":"Instagram giden takip isteğini doğruladı"}
+background.js:1251 [Takipçi Paneli #00098] 2026-10-14T10:18:46.316Z Keşif | Beğeni atılan kullanıcıya girildi {"phase":"discovery","sourceAccount":"@hdinccetin","sourceId":"1564695121","action":"takip ettikleri listesi açılacak"}
+background.js:1251 [Takipçi Paneli #00099] 2026-10-14T10:18:46.324Z Keşif | Beğeni sonrası takip edilenler taranıyor {"phase":"discovery","sourceAccount":"@hdinccetin","sourceId":"1564695121","endpoint":"/api/v1/friendships/1564695121/following/","action":"takip edilen hesaplar alınacak ve cinsiyetleri sınıflandırılacak"}
+background.js:1251 [Takipçi Paneli #00100] 2026-10-14T10:18:56.809Z Keşif | Takip listesi çekildi {"phase":"discovery","userId":"1564695121","relation":"following","endpoint":"/api/v1/friendships/1564695121/following/","rawCount":50,"uniqueCount":50,"action":"takip edilenler hazır"}
+background.js:1251 [Takipçi Paneli #00101] 2026-10-14T10:19:05.663Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/3007128297/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00102] 2026-10-14T10:19:05.672Z Keşif | Adayın takip edilmediği doğrulandı; ortak hesap kontrolü başlıyor {"phase":"discovery","sourceAccount":"@hdinccetin","candidate":"@menduhhhh","candidateId":"3007128297","action":"mutual eşiği geçerse cinsiyet kontrolü yapılacak"}
+background.js:1251 [Takipçi Paneli #00103] 2026-10-14T10:19:15.294Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@aizatalant","@goncaegemen_ates"]}
+background.js:1251 [Takipçi Paneli #00104] 2026-10-14T10:19:15.528Z Hikaye kontrolü tamamlandı {"username":"aizatalant","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00105] 2026-10-14T10:19:25.902Z Hikaye kontrolü tamamlandı {"username":"goncaegemen_ates","found":12,"unliked":7,"reasonCode":"unliked_available","reason":"12 hikaye bulundu, 7 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00106] 2026-10-14T10:19:35.661Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/50736030517/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00107] 2026-10-14T10:19:35.670Z Beğeni öncesi canlı takip kontrolü geçti {"username":"goncaegemen_ates","candidateId":"50736030517","contentType":"story","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00108] 2026-10-14T10:19:47.860Z story beğeni mutation başarılı - onaylandı {"operation":"usePolarisStoriesV4LikeMutationLikeMutation","docId":"26938887309082050","mediaId":"4007007003465330653","responseKeys":["data","extensions"],"mutationResultKeys":["__typename"],"typename":"XIGSendStoryLikeResponsePayload"}
+background.js:1251 [Takipçi Paneli #00109] 2026-10-14T10:19:47.872Z Hikaye beğenildi: @goncaegemen_ates {"type":"story","mediaId":"4007007003465330653","action":"beğeni gönderildi"}
+background.js:416 [+] YAKALANDI 12x doc_id | son: 26938887309082050 | liste: 28026812547006985 (6x), 28217628591240469 (3x), 28051398997871885 (2x), 26938887309082050 (1x)
+background.js:1251 [Takipçi Paneli #00110] 2026-10-14T10:22:00.988Z Kullanıcı profiline girildi {"username":"@mihrikarakoyun","userId":"412088344","action":"profil verisi alındı"}
+background.js:1251 [Takipçi Paneli #00111] 2026-10-14T10:22:02.245Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:1251 [Takipçi Paneli #00112] 2026-10-14T10:23:05.562Z Keşif | Ortak hesaplara bakıldı {"phase":"discovery","targetId":"3007128297","endpoint":"/api/v1/friendships/3007128297/mutual_followers/","mutualCount":1,"returnedUserCount":1,"action":"ortak hesap sayısı alındı"}
+background.js:1251 [Takipçi Paneli #00113] 2026-10-14T10:23:05.575Z Keşif | Beğeni sonrası aday ortak hesap şartını geçemedi {"phase":"discovery","sourceAccount":"@hdinccetin","candidate":"@menduhhhh","candidateId":"3007128297","mutualCount":1,"expected":2,"action":"profil/cinsiyet analizi ve takip isteği yapılmadı"}
+background.js:1251 [Takipçi Paneli #00114] 2026-10-14T10:23:15.721Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/14173817628/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00115] 2026-10-14T10:23:15.731Z Keşif | Adayın takip edilmediği doğrulandı; ortak hesap kontrolü başlıyor {"phase":"discovery","sourceAccount":"@hdinccetin","candidate":"@filiz.ucarrr","candidateId":"14173817628","action":"mutual eşiği geçerse cinsiyet kontrolü yapılacak"}
+background.js:416 [+] YAKALANDI 21x doc_id | son: 28036671149327607 | liste: 28036671149327607 (4x), 26673487622279953 (4x), 28542612348729311 (2x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), 28647748031575520 (1x), 27393860900250970 (1x), 26821612144133136 (1x), 27647971824866335 (1x), 27657376130569675 (1x), 38857189510595779 (1x), 27703822975903310 (1x), 27399811883030165 (1x)
+background.js:1251 [Takipçi Paneli #00116] 2026-10-14T10:24:15.294Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@beyza_selin08","@ayselolmez__"]}
+background.js:1251 [Takipçi Paneli #00117] 2026-10-14T10:24:15.732Z Hikaye kontrolü tamamlandı {"username":"beyza_selin08","found":1,"unliked":0,"reasonCode":"all_liked","reason":"1 hikaye bulundu; tamamı daha önce beğenilmiş"}
+background.js:1251 [Takipçi Paneli #00118] 2026-10-14T10:24:25.622Z Hikaye kontrolü tamamlandı {"username":"ayselolmez__","found":1,"unliked":0,"reasonCode":"all_liked","reason":"1 hikaye bulundu; tamamı daha önce beğenilmiş"}
+background.js:1251 [Takipçi Paneli #00119] 2026-10-14T10:24:38.418Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/54147849107/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00120] 2026-10-14T10:24:38.428Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/54147849107/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel=\"icon\" {"endpoint":"/api/v1/feed/user/54147849107/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1963
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00121] 2026-10-14T10:24:38.439Z Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor {"username":"beyza_selin08","endpoint":"/api/v1/feed/user/54147849107/"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1970
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00122] 2026-10-14T10:24:48.402Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/beyza_selin08/username/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00123] 2026-10-14T10:24:48.412Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/beyza_selin08/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" r {"endpoint":"/api/v1/feed/user/beyza_selin08/username/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1980
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00124] 2026-10-14T10:24:48.423Z Gönderi kullanıcı adı adresi geçici yanıt verdi {"username":"beyza_selin08","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/beyza_se"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1988
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00125] 2026-10-14T10:24:48.434Z Gönderi GraphQL yedeği kullanılamadı; güncel Posts bağlantı işlemi yakalanmamış {"username":"beyza_selin08","captured":true,"capturedOperation":"PolarisProfilePostsQuery","hasVariables":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:2010
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00126] 2026-10-14T10:24:48.444Z Gönderi geçici hata verdi; Reels yedeğine geçiliyor {"username":"beyza_selin08","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/beyza_se"}
+background.js:1251 [Takipçi Paneli #00127] 2026-10-14T10:24:48.455Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/beyza_selin08/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" r {"username":"beyza_selin08","contentType":"post","reasonCode":"request_error"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+runAutolikeTick @ background.js:6254
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00128] 2026-10-14T10:24:48.466Z Reels kontrol aşaması başladı {"candidates":["@beyza_selin08","@ayselolmez__"],"postRetryPending":true}
+background.js:1251 [Takipçi Paneli #00129] 2026-10-14T10:24:55.466Z Reels kontrolü tamamlandı {"username":"beyza_selin08","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram reels yanıtı boş döndü; bu hesapta erişilebilir reels bulunamadı"}
+background.js:1251 [Takipçi Paneli #00130] 2026-10-14T10:25:06.866Z Reels kontrolü tamamlandı {"username":"ayselolmez__","found":6,"unliked":6,"reasonCode":"unliked_available","reason":"6 reels bulundu, 6 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00131] 2026-10-14T10:25:15.794Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/1219283892/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00132] 2026-10-14T10:25:15.804Z Beğeni öncesi canlı takip kontrolü geçti {"username":"ayselolmez__","candidateId":"1219283892","contentType":"reel","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00133] 2026-10-14T10:25:25.941Z reel beğeni mutation başarılı - onaylandı {"operation":"PolarisAPILikePostMutation","docId":"28051398997871885","mediaId":"3974382056614670704","responseKeys":["data","extensions"],"mutationResultKeys":["media"],"has_liked":true}
+background.js:1251 [Takipçi Paneli #00134] 2026-10-14T10:25:25.953Z Reel beğenildi: @ayselolmez__ {"type":"reel","mediaId":"3974382056614670704","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00135] 2026-10-14T10:26:15.303Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@selyaasvsh","@cennet_08.94"]}
+background.js:1251 [Takipçi Paneli #00136] 2026-10-14T10:26:15.636Z Hikaye kontrolü tamamlandı {"username":"selyaasvsh","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00137] 2026-10-14T10:26:25.551Z Hikaye kontrolü tamamlandı {"username":"cennet_08.94","found":1,"unliked":1,"reasonCode":"unliked_available","reason":"1 hikaye bulundu, 1 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00138] 2026-10-14T10:26:35.585Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/65248024774/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00139] 2026-10-14T10:26:35.594Z Beğeni öncesi canlı takip kontrolü geçti {"username":"cennet_08.94","candidateId":"65248024774","contentType":"story","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00140] 2026-10-14T10:26:48.093Z story beğeni mutation başarılı - onaylandı {"operation":"usePolarisStoriesV4LikeMutationLikeMutation","docId":"26938887309082050","mediaId":"4007273098400294439","responseKeys":["data","extensions"],"mutationResultKeys":["__typename"],"typename":"XIGSendStoryLikeResponsePayload"}
+background.js:1251 [Takipçi Paneli #00141] 2026-10-14T10:26:48.106Z Hikaye beğenildi: @cennet_08.94 {"type":"story","mediaId":"4007273098400294439","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00142] 2026-10-14T10:28:05.614Z Keşif | Ortak hesaplara bakıldı {"phase":"discovery","targetId":"14173817628","endpoint":"/api/v1/friendships/14173817628/mutual_followers/","mutualCount":2,"returnedUserCount":2,"action":"ortak hesap sayısı alındı"}
+background.js:1251 [Takipçi Paneli #00143] 2026-10-14T10:28:05.627Z Keşif | Aday ortak hesap sayısıyla eşleşti; cinsiyet kontrolü başlıyor {"phase":"discovery","sourceAccount":"@hdinccetin","candidate":"@filiz.ucarrr","candidateId":"14173817628","mutualCount":2,"expected":2,"action":"cinsiyet analizi tamamlanırsa hedef cinsiyete göre takip isteği değerlendirilecek"}
+background.js:1251 [Takipçi Paneli #00144] 2026-10-14T10:28:05.646Z Bay/kadın cinsiyet kontrolü başladı {"candidateCount":1,"pendingCount":1,"candidates":["@filiz.ucarrr"],"profilePhotoCount":1,"action":"kullanıcı adı, profil metni ve mevcut profil fotoğrafı analiz ediliyor"}
+background.js:1251 [Takipçi Paneli #00145] 2026-10-14T10:28:09.410Z Bay/kadın cinsiyet kontrolü tamamlandı {"candidateCount":1,"femaleCount":1,"maleCount":0,"unknownCount":0,"classificationErrorCount":0,"uniqueClassificationErrorCount":0,"classificationErrors":[],"action":"Gemini API, env.js içindeki anahtarla doğrudan kullanıldı"}
+background.js:1251 [Takipçi Paneli #00146] 2026-10-14T10:28:09.431Z Keşif | Adayın cinsiyet kontrolü tamamlandı {"phase":"discovery","sourceAccount":"@hdinccetin","candidate":"@filiz.ucarrr","candidateId":"14173817628","mutualCount":2,"gender":"female","targetGender":"female","matchesTargetGender":true,"action":"takip isteği öncesi canlı takip durumu yeniden doğrulanacak"}
+background.js:1251 [Takipçi Paneli #00147] 2026-10-14T10:28:15.293Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@svitlana_akinci","@the.dariaaaaaa"]}
+background.js:416 [+] YAKALANDI 8x doc_id | son: 26938887309082050 | liste: 28026812547006985 (4x), 28217628591240469 (2x), 28051398997871885 (1x), 26938887309082050 (1x)
+background.js:1251 [Takipçi Paneli #00148] 2026-10-14T10:28:15.690Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/14173817628/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00149] 2026-10-14T10:28:15.707Z Keşif | Kadın aday için takip isteği gönderiliyor {"phase":"discovery-follow","gender":"female","candidate":"@filiz.ucarrr","candidateId":"14173817628","relation":"following","method":"POST","endpoint":"/api/v1/friendships/create/14173817628/","quotaBeforeSend":1}
+background.js:1251 [Takipçi Paneli #00150] 2026-10-14T10:28:25.685Z Hikaye kontrolü tamamlandı {"username":"svitlana_akinci","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00151] 2026-10-14T10:28:36.279Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/create/14173817628/","method":"POST"}
+background.js:1251 [Takipçi Paneli #00152] 2026-10-14T10:28:36.294Z Keşif | Kadın aday için takip isteği gönderildi: @filiz.ucarrr {"phase":"discovery-follow","gender":"female","candidateId":"14173817628","following":false,"outgoingRequest":true,"dailyUsed":2,"dailyRemaining":838,"action":"Instagram giden takip isteğini doğruladı; durum kaydedildi"}
+background.js:1251 [Takipçi Paneli #00153] 2026-10-14T10:28:36.310Z Keşif | Beğeni sonrası ortak hesap akışı tamamlandı {"phase":"discovery","sourceAccount":"@hdinccetin","candidate":"@filiz.ucarrr","candidateId":"14173817628","mutualCount":2,"gender":"female","targetGender":"female","followStatus":"sent","action":"Instagram giden takip isteğini doğruladı"}
+background.js:1251 [Takipçi Paneli #00154] 2026-10-14T10:28:36.320Z Keşif | Beğeni atılan kullanıcıya girildi {"phase":"discovery","sourceAccount":"@cennet_08.94","sourceId":"65248024774","action":"takip ettikleri listesi açılacak"}
+background.js:1251 [Takipçi Paneli #00155] 2026-10-14T10:28:36.331Z Keşif | Beğeni sonrası takip edilenler taranıyor {"phase":"discovery","sourceAccount":"@cennet_08.94","sourceId":"65248024774","endpoint":"/api/v1/friendships/65248024774/following/","action":"takip edilen hesaplar alınacak ve cinsiyetleri sınıflandırılacak"}
+background.js:1251 [Takipçi Paneli #00156] 2026-10-14T10:28:45.608Z Hikaye kontrolü tamamlandı {"username":"the.dariaaaaaa","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00157] 2026-10-14T10:28:56.384Z Keşif | Takip listesi çekildi {"phase":"discovery","userId":"65248024774","relation":"following","endpoint":"/api/v1/friendships/65248024774/following/","rawCount":50,"uniqueCount":50,"action":"takip edilenler hazır"}
+background.js:1251 [Takipçi Paneli #00158] 2026-10-14T10:29:08.551Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/3272215105/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00159] 2026-10-14T10:29:08.564Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/3272215105/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel=\"icon\"  {"endpoint":"/api/v1/feed/user/3272215105/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1963
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00160] 2026-10-14T10:29:08.580Z Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor {"username":"svitlana_akinci","endpoint":"/api/v1/feed/user/3272215105/"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1970
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00161] 2026-10-14T10:29:15.689Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/7176485304/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00162] 2026-10-14T10:29:15.701Z Keşif | Adayın takip edilmediği doğrulandı; ortak hesap kontrolü başlıyor {"phase":"discovery","sourceAccount":"@cennet_08.94","candidate":"@shkrvna7","candidateId":"7176485304","action":"mutual eşiği geçerse cinsiyet kontrolü yapılacak"}
+background.js:1251 [Takipçi Paneli #00163] 2026-10-14T10:29:29.379Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/svitlana_akinci/username/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00164] 2026-10-14T10:29:29.393Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/svitlana_akinci/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" {"endpoint":"/api/v1/feed/user/svitlana_akinci/username/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1980
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00165] 2026-10-14T10:29:29.407Z Gönderi kullanıcı adı adresi geçici yanıt verdi {"username":"svitlana_akinci","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/svitlana"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1988
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00166] 2026-10-14T10:29:29.423Z Gönderi GraphQL yedeği kullanılamadı; güncel Posts bağlantı işlemi yakalanmamış {"username":"svitlana_akinci","captured":true,"capturedOperation":"PolarisProfilePostsQuery","hasVariables":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:2010
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00167] 2026-10-14T10:29:29.436Z Gönderi geçici hata verdi; Reels yedeğine geçiliyor {"username":"svitlana_akinci","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/svitlana"}
+background.js:1251 [Takipçi Paneli #00168] 2026-10-14T10:29:29.451Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/svitlana_akinci/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" {"username":"svitlana_akinci","contentType":"post","reasonCode":"request_error"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+runAutolikeTick @ background.js:6254
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00169] 2026-10-14T10:29:29.465Z Reels kontrol aşaması başladı {"candidates":["@svitlana_akinci","@the.dariaaaaaa"],"postRetryPending":true}
+background.js:1251 [Takipçi Paneli #00170] 2026-10-14T10:29:36.651Z Reels kontrolü tamamlandı {"username":"svitlana_akinci","found":12,"unliked":12,"reasonCode":"unliked_available","reason":"12 reels bulundu, 12 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00171] 2026-10-14T10:29:45.742Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/3272215105/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00172] 2026-10-14T10:29:45.754Z Beğeni öncesi canlı takip kontrolü geçti {"username":"svitlana_akinci","candidateId":"3272215105","contentType":"reel","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00173] 2026-10-14T10:29:56.344Z reel beğeni mutation başarılı - onaylandı {"operation":"PolarisAPILikePostMutation","docId":"28051398997871885","mediaId":"3979493316466538317","responseKeys":["data","extensions"],"mutationResultKeys":["media"],"has_liked":true}
+background.js:1251 [Takipçi Paneli #00174] 2026-10-14T10:29:56.355Z Reel beğenildi: @svitlana_akinci {"type":"reel","mediaId":"3979493316466538317","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00175] 2026-10-14T10:30:13.168Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":1851157771}
+background.js:1251 [Takipçi Paneli #00176] 2026-10-14T10:30:15.297Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@nails_by_aylara_cy","@leyla05071998"]}
+background.js:1251 [Takipçi Paneli #00177] 2026-10-14T10:30:15.517Z Hikaye kontrolü tamamlandı {"username":"nails_by_aylara_cy","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00178] 2026-10-14T10:30:25.524Z Hikaye kontrolü tamamlandı {"username":"leyla05071998","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00179] 2026-10-14T10:30:38.397Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/53723228529/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00180] 2026-10-14T10:30:38.411Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/53723228529/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp\" rel=\"icon\" {"endpoint":"/api/v1/feed/user/53723228529/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1963
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00181] 2026-10-14T10:30:38.426Z Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor {"username":"nails_by_aylara_cy","endpoint":"/api/v1/feed/user/53723228529/"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1970
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00182] 2026-10-14T10:30:49.763Z Instagram sayfa fetch fallback sonuç vermedi {"endpoint":"/api/v1/feed/user/nails_by_aylara_cy/username/","method":"GET","status":200,"statusText":"","retryAfter":"","responseContentType":"text/html; charset=\"utf-8\"","responseReason":"HTML yanıtı: Instagram","error":"HTTP 200: HTML yanıtı: Instagram"}
+background.js:1251 [Takipçi Paneli #00183] 2026-10-14T10:30:49.781Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/nails_by_aylara_cy/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.web {"endpoint":"/api/v1/feed/user/nails_by_aylara_cy/username/","method":"GET","transient":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+apiCallUnqueued @ background.js:3127
+await in apiCallUnqueued
+(anonymous) @ background.js:3145
+(anonymous) @ background.js:710
+Promise.then
+enqueueInstagramRequest @ background.js:681
+withInstagramRequestSlot @ background.js:785
+apiCall @ background.js:3143
+fetchProfilePosts @ background.js:1980
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00184] 2026-10-14T10:30:49.799Z Gönderi kullanıcı adı adresi geçici yanıt verdi {"username":"nails_by_aylara_cy","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/nails_by"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:1988
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00185] 2026-10-14T10:30:49.820Z Gönderi GraphQL yedeği kullanılamadı; güncel Posts bağlantı işlemi yakalanmamış {"username":"nails_by_aylara_cy","captured":true,"capturedOperation":"PolarisProfilePostsQuery","hasVariables":true}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+fetchProfilePosts @ background.js:2010
+await in fetchProfilePosts
+runAutolikeTick @ background.js:6188
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00186] 2026-10-14T10:30:49.837Z Gönderi geçici hata verdi; Reels yedeğine geçiliyor {"username":"nails_by_aylara_cy","error":"Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {\"title\":\"Instagram\",\"respUrl\":\"https://www.instagram.com/\",\"redirected\":true,\"requestedUrl\":\"https://www.instagram.com/api/v1/feed/user/nails_by"}
+background.js:1251 [Takipçi Paneli #00187] 2026-10-14T10:30:49.857Z Instagram beklenmeyen HTML sayfası döndürdü (durum 200, geçici yönlendirme/throttle olabilir): {"title":"Instagram","respUrl":"https://www.instagram.com/","redirected":true,"requestedUrl":"https://www.instagram.com/api/v1/feed/user/nails_by_aylara_cy/username/?count=12","currentPage":"https://www.instagram.com/mihrikarakoyun/","snippet":"<!DOCTYPE html><html class=\"_9dls _ar44\" lang=\"tr\" dir=\"ltr\"><head><link data-default-icon=\"https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.web {"username":"nails_by_aylara_cy","contentType":"post","reasonCode":"request_error"}
+writeExtensionConsole @ background.js:1251
+appendDebugLog @ background.js:1273
+runAutolikeTick @ background.js:6254
+await in runAutolikeTick
+autolikeTick @ background.js:6560
+(anonymous) @ background.js:8763
+Promise.then
+(anonymous) @ background.js:8761
+background.js:1251 [Takipçi Paneli #00188] 2026-10-14T10:30:49.874Z Reels kontrol aşaması başladı {"candidates":["@nails_by_aylara_cy","@leyla05071998"],"postRetryPending":true}
+background.js:1251 [Takipçi Paneli #00189] 2026-10-14T10:30:56.449Z Reels kontrolü tamamlandı {"username":"nails_by_aylara_cy","found":11,"unliked":11,"reasonCode":"unliked_available","reason":"11 reels bulundu, 11 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00190] 2026-10-14T10:31:05.631Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/53723228529/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00191] 2026-10-14T10:31:05.644Z Beğeni öncesi canlı takip kontrolü geçti {"username":"nails_by_aylara_cy","candidateId":"53723228529","contentType":"reel","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00192] 2026-10-14T10:31:16.052Z reel beğeni mutation başarılı - onaylandı {"operation":"PolarisAPILikePostMutation","docId":"28051398997871885","mediaId":"3326348946064802742","responseKeys":["data","extensions"],"mutationResultKeys":["media"],"has_liked":true}
+background.js:1251 [Takipçi Paneli #00193] 2026-10-14T10:31:16.067Z Reel beğenildi: @nails_by_aylara_cy {"type":"reel","mediaId":"3326348946064802742","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00194] 2026-10-14T10:32:15.295Z Otomatik beğeni içerik türleri ve adaylar {"enabled":["story","post","reel"],"hasStory":true,"hasPost":true,"hasReel":true,"candidates":["@cansuaksll","@___niniii27"]}
+background.js:1251 [Takipçi Paneli #00195] 2026-10-14T10:32:15.909Z Hikaye kontrolü tamamlandı {"username":"cansuaksll","found":0,"unliked":0,"reasonCode":"empty_response","reason":"Instagram hikaye yanıtı boş döndü; bu hesapta şu anda aktif hikaye bulunamadı"}
+background.js:1251 [Takipçi Paneli #00196] 2026-10-14T10:32:26.105Z Hikaye kontrolü tamamlandı {"username":"___niniii27","found":5,"unliked":1,"reasonCode":"unliked_available","reason":"5 hikaye bulundu, 1 tanesi beğenilebilir"}
+background.js:1251 [Takipçi Paneli #00197] 2026-10-14T10:32:35.640Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/6197374104/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00198] 2026-10-14T10:32:35.650Z Beğeni öncesi canlı takip kontrolü geçti {"username":"___niniii27","candidateId":"6197374104","contentType":"story","action":"takip edildiği doğrulandı"}
+background.js:1251 [Takipçi Paneli #00199] 2026-10-14T10:32:48.137Z story beğeni mutation başarılı - onaylandı {"operation":"usePolarisStoriesV4LikeMutationLikeMutation","docId":"26938887309082050","mediaId":"4007030405659923467","responseKeys":["data","extensions"],"mutationResultKeys":["__typename"],"typename":"XIGSendStoryLikeResponsePayload"}
+background.js:1251 [Takipçi Paneli #00200] 2026-10-14T10:32:48.150Z Hikaye beğenildi: @___niniii27 {"type":"story","mediaId":"4007030405659923467","action":"beğeni gönderildi"}
+background.js:1251 [Takipçi Paneli #00201] 2026-10-14T10:33:05.617Z Keşif | Ortak hesaplara bakıldı {"phase":"discovery","targetId":"7176485304","endpoint":"/api/v1/friendships/7176485304/mutual_followers/","mutualCount":1,"returnedUserCount":1,"action":"ortak hesap sayısı alındı"}
+background.js:1251 [Takipçi Paneli #00202] 2026-10-14T10:33:05.632Z Keşif | Beğeni sonrası aday ortak hesap şartını geçemedi {"phase":"discovery","sourceAccount":"@cennet_08.94","candidate":"@shkrvna7","candidateId":"7176485304","mutualCount":1,"expected":2,"action":"profil/cinsiyet analizi ve takip isteği yapılmadı"}
+background.js:1251 [Takipçi Paneli #00203] 2026-10-14T10:33:15.692Z execRestInTab başarılı {"endpoint":"/api/v1/friendships/show/32958337393/","method":"GET"}
+background.js:1251 [Takipçi Paneli #00204] 2026-10-14T10:33:15.705Z Keşif | Adayın takip edilmediği doğrulandı; ortak hesap kontrolü başlıyor {"phase":"discovery","sourceAccount":"@cennet_08.94","candidate":"@hemsireussapiens","candidateId":"32958337393","action":"mutual eşiği geçerse cinsiyet kontrolü yapılacak"}
