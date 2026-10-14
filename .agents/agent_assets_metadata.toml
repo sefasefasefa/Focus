@@ -14,3 +14,17 @@ mtime_ms = 1791976035731
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:71e3bd8b-2dcd-4edb-96fd-2b89dfbd9f23/29dc1f05-8976-452d-8577-278827922f6d/f8f08c2d-ddba-4315-8465-db6afee30580"
 storage_version_token = "1791976076557322"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "juf9jRQG-2uLylq2scKXe"
+uri = "file://generated-artifacts/Takipci-Paneli-1.0.148-gonderi-hata-duzeltmesi.zip"
+type = "unspecified"
+title = "Takipçi Paneli 1.0.148 — gönderi hata düzeltmesi"
+description = "Gönderi yanıtındaki isteğe bağlı profil fotoğrafı GraphQL hatalarını, geçerli gönderi verisini kaybetmeden işleyen güncellenmiş ZIP paketi."
+logical_id = "2feec80d-696b-40ed-b0dd-ceae07cb601e"
+content_hash = "sha256:2149e7a82ef277437ac923b1f5cb72a6d8c3e7145e1db5f55b67b951dc08e89a"
+size = 401288
+mtime_ms = 1791976899639
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:71e3bd8b-2dcd-4edb-96fd-2b89dfbd9f23/2feec80d-696b-40ed-b0dd-ceae07cb601e/e5df6447-ab33-43cb-8b9f-4db83cdc64e4"
+storage_version_token = "1791976909424834"
+content_type = "application/octet-stream"

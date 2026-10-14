@@ -1,0 +1,1 @@
+- [Dynamic Instagram targets](instagram-post-targets.md) — the post target changes; never hardcode one account into retrieval.
