@@ -5,6 +5,13 @@ import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { licensePlans } from "./plans.mjs";
 import { recordPaidOrder } from "./orders.mjs";
+import {
+  decryptInstagramSession,
+  encryptInstagramSession,
+  instagramCookieHeader,
+  parseInstagramSessionKey,
+  sanitizeInstagramSession,
+} from "./instagram-sessions.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.BIND_HOST || "127.0.0.1";
@@ -47,6 +54,21 @@ db.exec(`
     license_order_id TEXT NOT NULL REFERENCES shopier_orders(order_id),
     paid_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS instagram_sessions (
+    order_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    instagram_user_id TEXT NOT NULL,
+    ciphertext TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    consented_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_request_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (order_id, device_id),
+    FOREIGN KEY (order_id, device_id)
+      REFERENCES license_devices(order_id, device_id) ON DELETE CASCADE
+  );
 `);
 const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
 if (!deviceColumns.includes("refresh_hash")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_hash TEXT");
@@ -63,7 +85,7 @@ function writeJson(response, status, value) {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "x-content-type-options": "nosniff",
@@ -74,7 +96,7 @@ function writeJson(response, status, value) {
 function writePreflight(response) {
   response.writeHead(204, {
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "cache-control": "no-store",
@@ -176,6 +198,16 @@ function requireConfiguredLicenseSecrets() {
   }
 }
 
+function getInstagramSessionKey() {
+  try {
+    return parseInstagramSessionKey(process.env.INSTAGRAM_SESSION_ENCRYPTION_KEY);
+  } catch {
+    throw Object.assign(new Error("Instagram oturum şifreleme anahtarı sunucuda ayarlanmamış."), {
+      status: 503,
+    });
+  }
+}
+
 function authenticateLicense(request) {
   const token = decodeAccessToken(getBearerToken(request));
   if (!token) {
@@ -201,6 +233,232 @@ function authenticateLicense(request) {
     UPDATE license_devices SET last_seen_at = ? WHERE order_id = ? AND device_id = ?
   `).run(Date.now(), token.orderId, token.deviceId);
   return { token, order };
+}
+
+async function handleInstagramSession(request, response) {
+  const { token } = authenticateLicense(request);
+  const key = `${token.orderId}:${token.deviceId}`;
+
+  if (request.method === "GET") {
+    const row = db.prepare(`
+      SELECT instagram_user_id, consented_at, updated_at
+      FROM instagram_sessions WHERE order_id = ? AND device_id = ?
+    `).get(token.orderId, token.deviceId);
+    return writeJson(response, 200, {
+      ok: true,
+      linked: Boolean(row),
+      instagramUserId: row?.instagram_user_id || null,
+      consentedAt: row ? Number(row.consented_at) : null,
+      updatedAt: row ? Number(row.updated_at) : null,
+    });
+  }
+
+  if (request.method === "DELETE") {
+    db.prepare(`
+      DELETE FROM instagram_sessions WHERE order_id = ? AND device_id = ?
+    `).run(token.orderId, token.deviceId);
+    return writeJson(response, 200, { ok: true, linked: false });
+  }
+
+  if (request.method !== "POST") {
+    return writeJson(response, 405, { ok: false, error: "Method not allowed." });
+  }
+  if (isRateLimited(request, "instagram-session-link")) {
+    throw Object.assign(new Error("Çok sık oturum bağlantısı denendi; daha sonra tekrar deneyin."), {
+      status: 429,
+    });
+  }
+
+  const input = await readJson(request, 32 * 1024);
+  const session = sanitizeInstagramSession(input);
+  session.consentAt = Date.now();
+  const encrypted = encryptInstagramSession(
+    session,
+    getInstagramSessionKey(),
+    key,
+  );
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO instagram_sessions (
+      order_id, device_id, instagram_user_id, ciphertext, iv, tag,
+      consented_at, created_at, updated_at, last_request_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    ON CONFLICT(order_id, device_id) DO UPDATE SET
+      instagram_user_id = excluded.instagram_user_id,
+      ciphertext = excluded.ciphertext,
+      iv = excluded.iv,
+      tag = excluded.tag,
+      consented_at = excluded.consented_at,
+      updated_at = excluded.updated_at,
+      last_request_at = 0
+  `).run(
+    token.orderId,
+    token.deviceId,
+    session.instagramUserId,
+    encrypted.ciphertext,
+    encrypted.iv,
+    encrypted.tag,
+    session.consentAt,
+    now,
+    now,
+  );
+  return writeJson(response, 201, {
+    ok: true,
+    linked: true,
+    instagramUserId: session.instagramUserId,
+    consentedAt: session.consentAt,
+  });
+}
+
+function normalizeInstagramProxyRequest(input) {
+  const method = String(input?.method || "GET").toUpperCase();
+  if (method !== "GET" && method !== "POST") {
+    throw Object.assign(new Error("Instagram isteği için yöntem desteklenmiyor."), { status: 400 });
+  }
+  const rawEndpoint = String(input?.endpoint || "");
+  if (
+    !rawEndpoint.startsWith("/") ||
+    rawEndpoint.startsWith("//") ||
+    rawEndpoint.length > 4096 ||
+    rawEndpoint.includes("\\") ||
+    /(?:^|\/)\.\.(?:\/|$)/.test(rawEndpoint)
+  ) {
+    throw Object.assign(new Error("Instagram API yolu geçersiz."), { status: 400 });
+  }
+  const url = new URL(rawEndpoint, "https://www.instagram.com");
+  if (
+    url.origin !== "https://www.instagram.com" ||
+    !/^\/api\/(?:v1\/|graphql(?:\/|$))/.test(url.pathname)
+  ) {
+    throw Object.assign(new Error("Yalnızca izin verilen Instagram API yolları çağrılabilir."), {
+      status: 400,
+    });
+  }
+  const params = input?.params;
+  if (params && typeof params === "object" && !Array.isArray(params)) {
+    for (const [name, value] of Object.entries(params)) {
+      if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(name)) continue;
+      if (Array.isArray(value)) {
+        for (const item of value.slice(0, 20)) url.searchParams.append(name, String(item).slice(0, 2048));
+      } else if (value !== undefined && value !== null) {
+        url.searchParams.set(name, String(value).slice(0, 2048));
+      }
+    }
+  }
+
+  const sourceHeaders = input?.headers;
+  const allowedHeaders = new Set([
+    "content-type",
+    "user-agent",
+    "x-asbd-id",
+    "x-fb-friendly-name",
+    "x-fb-lsd",
+    "x-ig-app-id",
+    "x-ig-max-touch-points",
+    "x-ig-www-claim",
+    "x-requested-with",
+  ]);
+  const headers = {};
+  if (sourceHeaders && typeof sourceHeaders === "object" && !Array.isArray(sourceHeaders)) {
+    for (const [rawName, rawValue] of Object.entries(sourceHeaders)) {
+      const name = rawName.toLowerCase();
+      const value = String(rawValue ?? "");
+      if (!allowedHeaders.has(name) || value.length > 4096 || /[\r\n]/.test(value)) continue;
+      headers[name] = value;
+    }
+  }
+  const body = input?.body == null ? "" : String(input.body);
+  if (body.length > 512 * 1024) {
+    throw Object.assign(new Error("Instagram istek gövdesi çok büyük."), { status: 413 });
+  }
+  return { method, url, headers, body };
+}
+
+async function handleInstagramRequest(request, response) {
+  const { token } = authenticateLicense(request);
+  const input = await readJson(request, 600 * 1024);
+  const normalized = normalizeInstagramProxyRequest(input);
+  const key = `${token.orderId}:${token.deviceId}`;
+  const row = db.prepare(`
+    SELECT instagram_user_id, ciphertext, iv, tag, last_request_at
+    FROM instagram_sessions WHERE order_id = ? AND device_id = ?
+  `).get(token.orderId, token.deviceId);
+  if (!row) {
+    throw Object.assign(new Error("Instagram oturumu sunucuya bağlanmamış. Lisans sayfasından bağlayın."), {
+      status: 409,
+    });
+  }
+
+  const now = Date.now();
+  const minimumGap = normalized.method === "POST" ? 3000 : 1500;
+  const update = db.prepare(`
+    UPDATE instagram_sessions SET last_request_at = ?
+    WHERE order_id = ? AND device_id = ? AND last_request_at <= ?
+  `).run(now, token.orderId, token.deviceId, now - minimumGap);
+  if (update.changes !== 1) {
+    const retryAfterMs = Math.max(250, minimumGap - (now - Number(row.last_request_at)));
+    response.setHeader("retry-after", String(Math.ceil(retryAfterMs / 1000)));
+    throw Object.assign(new Error("Instagram istekleri arasında kısa bir bekleme gerekli."), {
+      status: 429,
+    });
+  }
+
+  let session;
+  try {
+    session = decryptInstagramSession(
+      row,
+      getInstagramSessionKey(),
+      key,
+    );
+  } catch {
+    throw Object.assign(new Error("Instagram oturumu sunucuda açılamadı; yeniden bağlayın."), {
+      status: 503,
+    });
+  }
+
+  const headers = new Headers({
+    accept: "*/*",
+    origin: "https://www.instagram.com",
+    referer: "https://www.instagram.com/",
+    "user-agent": normalized.headers["user-agent"] ||
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "x-ig-app-id": normalized.headers["x-ig-app-id"] || "936619743392459",
+    "x-requested-with": normalized.headers["x-requested-with"] || "XMLHttpRequest",
+    "x-csrftoken": session.cookies.csrftoken,
+    cookie: instagramCookieHeader(session.cookies),
+  });
+  for (const [name, value] of Object.entries(normalized.headers)) {
+    headers.set(name, value);
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000);
+  let upstream;
+  try {
+    upstream = await fetch(normalized.url, {
+      method: normalized.method,
+      headers,
+      ...(normalized.method === "POST" ? { body: normalized.body } : {}),
+      redirect: "manual",
+      signal: controller.signal,
+    });
+  } catch {
+    throw Object.assign(new Error("Instagram API sunucudan yanıt vermedi."), { status: 502 });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const text = await upstream.text();
+  if (Buffer.byteLength(text, "utf8") > 2 * 1024 * 1024) {
+    throw Object.assign(new Error("Instagram yanıtı işlenemeyecek kadar büyük."), { status: 502 });
+  }
+  return writeJson(response, 200, {
+    ok: upstream.ok,
+    status: upstream.status,
+    contentType: String(upstream.headers.get("content-type") || "").slice(0, 160),
+    retryAfter: String(upstream.headers.get("retry-after") || "").slice(0, 80),
+    text,
+  });
 }
 
 function getRequestAddress(request) {
@@ -632,6 +890,15 @@ async function handleRequest(request, response) {
   }
   if (request.method === "POST" && url.pathname === "/api/ai/gender") {
     return await handleAiGender(request, response);
+  }
+  if (
+    url.pathname === "/api/instagram/session" &&
+    ["GET", "POST", "DELETE"].includes(request.method)
+  ) {
+    return await handleInstagramSession(request, response);
+  }
+  if (request.method === "POST" && url.pathname === "/api/instagram/request") {
+    return await handleInstagramRequest(request, response);
   }
   return writeJson(response, 404, { ok: false, error: "Not found." });
 }

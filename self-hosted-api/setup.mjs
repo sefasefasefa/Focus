@@ -13,7 +13,8 @@ copyFileSync(examplePath, envPath);
 let contents = readFileSync(envPath, "utf8");
 contents = contents
   .replace(/^LICENSE_SIGNING_SECRET=.*$/m, `LICENSE_SIGNING_SECRET=${randomBytes(48).toString("base64url")}`)
-  .replace(/^LICENSE_DATA_SECRET=.*$/m, `LICENSE_DATA_SECRET=${randomBytes(48).toString("base64url")}`);
+  .replace(/^LICENSE_DATA_SECRET=.*$/m, `LICENSE_DATA_SECRET=${randomBytes(48).toString("base64url")}`)
+  .replace(/^INSTAGRAM_SESSION_ENCRYPTION_KEY=.*$/m, `INSTAGRAM_SESSION_ENCRYPTION_KEY=${randomBytes(32).toString("base64url")}`);
 writeFileSync(envPath, contents, { mode: 0o600 });
 chmodSync(envPath, 0o600);
 console.log("Created .env with fresh local license secrets. Add Shopier and AI settings locally; do not send them in chat.");
