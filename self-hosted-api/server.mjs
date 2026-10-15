@@ -90,6 +90,18 @@ db.exec(`
     expires_at INTEGER NOT NULL,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS purchase_email_verifications (
+    email_hash TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    device_id TEXT,
+    password_salt TEXT,
+    password_hash TEXT,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (email_hash, purpose)
+  );
 `);
 const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
 if (!deviceColumns.includes("refresh_hash")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_hash TEXT");
@@ -651,63 +663,7 @@ async function handleShopierWebhook(request, response) {
 }
 
 async function handleLicenseActivation(request, response) {
-  if (isRateLimited(request, "activate")) {
-    return writeJson(response, 429, { ok: false, error: "Çok fazla deneme; daha sonra tekrar deneyin." });
-  }
-  requireConfiguredLicenseSecrets();
-  const input = await readJson(request, 16 * 1024);
-  const suppliedOrderId = String(input?.orderId || "").trim().slice(0, 160);
-  const renewal = db.prepare("SELECT license_order_id FROM shopier_renewals WHERE order_id = ?").get(suppliedOrderId);
-  const orderId = renewal?.license_order_id || suppliedOrderId;
-  const email = normalizedEmail(input?.email);
-  const deviceId = String(input?.deviceId || "").trim();
-  if (!orderId || !email.includes("@") || email.length > 320 || !/^[a-zA-Z0-9_-]{16,128}$/.test(deviceId)) {
-    return writeJson(response, 400, { ok: false, error: "Sipariş numarası, satın alma e-postası veya cihaz kimliği geçersiz." });
-  }
-  const order = db.prepare(`
-    SELECT order_id, payment_status, email_hash, expires_at, revoked_at, device_limit
-    FROM shopier_orders WHERE order_id = ?
-  `).get(orderId);
-  const suppliedEmailHash = emailDigest(email);
-  if (!order || order.payment_status !== "paid" || !secureTextEqual(order.email_hash, suppliedEmailHash)) {
-    return writeJson(response, 401, { ok: false, error: "Ödenmiş Shopier siparişi bulunamadı." });
-  }
-  if (order.revoked_at) {
-    return writeJson(response, 403, { ok: false, error: "Bu lisans iptal edilmiş." });
-  }
-  if (order.expires_at !== null && Number(order.expires_at) <= Date.now()) {
-    return writeJson(response, 403, { ok: false, error: "Bu siparişin lisans süresi dolmuş." });
-  }
-
-  const existing = db.prepare(`
-    SELECT device_id FROM license_devices WHERE order_id = ? AND device_id = ?
-  `).get(orderId, deviceId);
-  if (!existing) {
-    const count = db.prepare(`
-      SELECT COUNT(*) AS total FROM license_devices WHERE order_id = ?
-    `).get(orderId);
-    if (Number(count.total) >= Number(order.device_limit)) {
-      return writeJson(response, 409, { ok: false, error: "Bu lisans için cihaz sınırına ulaşıldı." });
-    }
-    db.prepare(`
-      INSERT INTO license_devices (order_id, device_id, first_seen_at, last_seen_at)
-      VALUES (?, ?, ?, ?)
-    `).run(orderId, deviceId, Date.now(), Date.now());
-  } else {
-    db.prepare(`
-      UPDATE license_devices SET last_seen_at = ? WHERE order_id = ? AND device_id = ?
-    `).run(Date.now(), orderId, deviceId);
-  }
-
-  const refreshToken = randomBytes(48).toString("base64url");
-  db.prepare("UPDATE license_devices SET refresh_hash = ?, refresh_until = ? WHERE order_id = ? AND device_id = ?")
-    .run(hmacHex(process.env.LICENSE_SIGNING_SECRET, refreshToken), Date.now() + REFRESH_TTL_MS, orderId, deviceId);
-  return writeJson(response, 200, {
-    ok: true,
-    accessToken: makeAccessToken(orderId, deviceId),
-    refreshToken,
-    expiresAt: order.expires_at === null ? null : Number(order.expires_at),
-  });
+  return accountHandlers.requestLicenseActivation(request, response);
 }
 
 async function handleLicenseRefresh(request, response) {
@@ -977,6 +933,9 @@ async function handleRequest(request, response) {
   if (request.method === "POST" && url.pathname === "/api/license/activate") {
     return await handleLicenseActivation(request, response);
   }
+  if (request.method === "POST" && url.pathname === "/api/license/activate/verify") {
+    return await accountHandlers.verifyLicenseActivation(request, response);
+  }
   if (request.method === "POST" && url.pathname === "/api/license/validate") {
     return await handleLicenseValidation(request, response);
   }
@@ -985,6 +944,9 @@ async function handleRequest(request, response) {
   }
   if (request.method === "POST" && url.pathname === "/api/account/register") {
     return await accountHandlers.register(request, response);
+  }
+  if (request.method === "POST" && url.pathname === "/api/account/register/verify") {
+    return await accountHandlers.verifyRegistration(request, response);
   }
   if (request.method === "POST" && url.pathname === "/api/account/login") {
     return await accountHandlers.login(request, response);

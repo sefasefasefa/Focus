@@ -129,6 +129,8 @@ h1, h2, p { margin-top: 0; }
 .section-heading > p:last-child { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field { display: grid; gap: 7px; margin-bottom: 14px; color: #d4cedd; font-size: 10px; font-weight: 700; }
+.field[hidden] { display: none; }
+#change-activation-email[hidden] { display: none; }
 .field input {
   width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid rgba(235,225,248,.12);
   border-radius: 8px; color: var(--ink); background: rgba(9,8,13,.55); font-size: 11px;

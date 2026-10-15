@@ -12,3 +12,9 @@ Instagram sessions are linked only after explicit user consent, synchronized fro
 **Why:** The user requires every operation to pass license validation, with licenses assigned through tokens and enforced expiration; the server-proxy architecture also ensures follow/like actions use each user's own isolated session without copying raw cookies back to the extension.
 
 **How to apply:** Gate every extension message that reads, writes, or acts on operational data through a fresh server license check; protect every business API route with token, revocation/payment, device, and expiry validation. Keep only activation, public plan/status reads, and local logout/cleanup outside the gate. Route provider requests through `self-hosted-api`; never put provider or payment secrets in extension files. Preserve explicit consent, per-order/device isolation, encryption, and server-side Instagram request execution.
+
+The extension must not ask users for a Shopier order number during account registration or license activation. Use the paid order recorded by the signed webhook and verify mailbox access for its buyer email.
+
+**Why:** The user explicitly said customers should not have to enter the Shopier order number during registration or similar flows.
+
+**How to apply:** Keep order IDs as server-side payment-record keys only; identify eligible purchases through the webhook-recorded buyer email and require proof of mailbox access before creating an account or issuing a device license.

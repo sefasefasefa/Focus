@@ -4,8 +4,10 @@
   const runtimeAvailable = Boolean(globalThis.chrome?.runtime?.sendMessage);
   const storageAvailable = Boolean(globalThis.chrome?.storage?.local);
   const elements = {
-    orderId: document.getElementById("order-id"),
     email: document.getElementById("purchase-email"),
+    activationCodeField: document.getElementById("activation-code-field"),
+    activationCode: document.getElementById("activation-code"),
+    changeActivationEmail: document.getElementById("change-activation-email"),
     activationForm: document.getElementById("activation-form"),
     activateButton: document.getElementById("activate-button"),
     activationFeedback: document.getElementById("activation-feedback"),
@@ -31,6 +33,7 @@
   let statusBusy = false;
   let configBusy = false;
   let activationBusy = false;
+  let activationCodeSent = false;
   let logoutBusy = false;
   let sessionBusy = false;
   let licenseActive = false;
@@ -70,6 +73,7 @@
     elements.refreshStatus.disabled = statusBusy || !runtimeAvailable;
     elements.refreshPlans.disabled = configBusy || !runtimeAvailable;
     elements.activateButton.disabled = activationBusy || !runtimeAvailable;
+    elements.changeActivationEmail.disabled = activationBusy || !runtimeAvailable;
     elements.logoutButton.disabled = logoutBusy || statusBusy || !runtimeAvailable;
     elements.sessionLinkButton.disabled =
       sessionBusy || !runtimeAvailable || !licenseActive ||
@@ -392,13 +396,15 @@
     event.preventDefault();
     if (activationBusy) return;
     setFeedback("");
-    const orderId = elements.orderId.value.trim();
     const email = elements.email.value.trim();
+    const code = elements.activationCode.value.trim();
     let apiBaseUrl;
     try {
       apiBaseUrl = getApiBaseUrl();
-      if (!orderId) throw new Error("Shopier sipariş numaranı gir.");
       if (!elements.email.checkValidity()) throw new Error("Geçerli bir satın alma e-postası gir.");
+      if (activationCodeSent && !elements.activationCode.checkValidity()) {
+        throw new Error("E-postana gelen 6 haneli kodu gir.");
+      }
       await ensureServerPermission(apiBaseUrl, true);
     } catch (error) {
       setFeedback(error.message);
@@ -410,17 +416,35 @@
     try {
       await saveUrl(apiBaseUrl);
       const result = await sendMessage({
-        type: "LICENSE_ACTIVATE",
+        type: activationCodeSent ? "LICENSE_ACTIVATE_VERIFY" : "LICENSE_ACTIVATE_REQUEST",
         apiBaseUrl,
-        orderId,
         email,
+        code,
       });
-      if (!result || typeof result !== "object" || result.ok !== true || result.active !== true) {
-        throw new Error(typeof result?.error === "string" ? result.error : "Sipariş doğrulanamadı. Bilgilerini kontrol edip tekrar dene.");
+      if (!result || typeof result !== "object" || result.ok !== true) {
+        throw new Error(typeof result?.error === "string" ? result.error : "Lisans doğrulanamadı. Bilgilerini kontrol edip tekrar dene.");
+      }
+      if (!activationCodeSent && result.verificationRequired === true) {
+        activationCodeSent = true;
+        elements.activationCodeField.hidden = false;
+        elements.changeActivationEmail.hidden = false;
+        elements.email.readOnly = true;
+        elements.activationCode.required = true;
+        elements.activationCode.focus();
+        setFeedback("Satın alma e-postanla eşleşen etkin bir ödeme varsa 6 haneli kod gönderildi. Kod 10 dakika geçerlidir.", "success");
+        return;
+      }
+      if (result.active !== true) {
+        throw new Error(typeof result?.error === "string" ? result.error : "Lisans doğrulanamadı. Bilgilerini kontrol edip tekrar dene.");
       }
       setFeedback("Lisansın başarıyla etkinleştirildi.", "success");
-      elements.orderId.value = "";
       elements.email.value = "";
+      elements.activationCode.value = "";
+      elements.activationCode.required = false;
+      elements.activationCodeField.hidden = true;
+      elements.changeActivationEmail.hidden = true;
+      elements.email.readOnly = false;
+      activationCodeSent = false;
       licenseActive = true;
       setStatus("Lisans etkin", formatExpiry(result.expiresAt), "active");
       await refreshInstagramSessionStatus();
@@ -430,7 +454,8 @@
       setStatus("Etkinleştirme tamamlanmadı", message, "error");
     } finally {
       activationBusy = false;
-      elements.activateButton.querySelector("span").textContent = "Bilgileri doğrula";
+      elements.activateButton.querySelector("span").textContent =
+        activationCodeSent ? "Kodu doğrula" : "Doğrulama kodu gönder";
       renderBusy();
     }
   }
@@ -463,6 +488,17 @@
   });
   elements.refreshPlans.addEventListener("click", () => refreshPlans(true));
   elements.activationForm.addEventListener("submit", handleActivation);
+  elements.changeActivationEmail.addEventListener("click", () => {
+    activationCodeSent = false;
+    elements.email.readOnly = false;
+    elements.activationCode.value = "";
+    elements.activationCode.required = false;
+    elements.activationCodeField.hidden = true;
+    elements.changeActivationEmail.hidden = true;
+    elements.activateButton.querySelector("span").textContent = "Doğrulama kodu gönder";
+    setFeedback("Satın alma e-posta adresini güncelle ve yeni kod iste.", "success");
+    elements.email.focus();
+  });
   elements.logoutButton.addEventListener("click", logout);
   elements.sessionConsent.addEventListener("change", renderBusy);
   elements.sessionLinkButton.addEventListener("click", linkInstagramSession);

@@ -55,24 +55,23 @@
         <div class="section-heading">
           <p class="section-kicker">SATIN ALMA SONRASI</p>
           <h2 id="activate-title">Lisansını etkinleştir</h2>
-          <p>Shopier sipariş bilgilerinle lisansını bu tarayıcıya tanıt.</p>
+          <p>Shopier satın alımında kullandığın e-posta adresine gelen kodla lisansını tanıt.</p>
         </div>
         <form id="activation-form" novalidate>
-          <div class="field-pair">
-            <label class="field">
-              <span>Shopier sipariş numarası</span>
-              <input id="order-id" name="orderId" type="text" autocomplete="off" placeholder="Sipariş numaranız" required>
-            </label>
-            <label class="field">
-              <span>Satın alma e-postası</span>
-              <input id="purchase-email" name="email" type="email" autocomplete="email" placeholder="ornek@eposta.com" required>
-            </label>
-          </div>
+          <label class="field">
+            <span>Satın alma e-postası</span>
+            <input id="purchase-email" name="email" type="email" autocomplete="email" placeholder="ornek@eposta.com" required>
+          </label>
+          <label class="field" id="activation-code-field" hidden>
+            <span>E-postana gelen 6 haneli kod</span>
+            <input id="activation-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+          </label>
+          <button class="button button-quiet button-small" id="change-activation-email" type="button" hidden>Başka e-posta kullan</button>
           <button class="button button-primary button-wide" id="activate-button" type="submit">
-            <span>Bilgileri doğrula</span><span aria-hidden="true">→</span>
+            <span>Doğrulama kodu gönder</span><span aria-hidden="true">→</span>
           </button>
           <p class="form-feedback" id="activation-feedback" role="status" aria-live="polite"></p>
-          <p class="privacy-note">E-posta adresin yalnızca doğrulama isteğinde kullanılır; uzantıda saklanmaz.</p>
+          <p class="privacy-note">Sipariş numarası gerekmez. Kod 10 dakika geçerlidir; e-posta adresin uzantıda saklanmaz.</p>
         </form>
       </section>
 

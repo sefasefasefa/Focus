@@ -8,7 +8,7 @@ Bu servis lisansları ve AI sağlayıcı anahtarını sunucuda tutar. Eklenti da
 - API klasöründe `npm install` ile kurulmuş bağımlılıklar
 - Shopier satıcı hesabı ve geliştirici uygulamasında `order.created` webhook'u
 - İnternetten erişilebilir HTTPS adresi (Shopier webhook için zorunlu)
-- Parola sıfırlama e-postaları için SMTP erişimi
+- Hesap ve lisans doğrulama kodları ile parola sıfırlama e-postaları için SMTP erişimi
 - Gemini veya Mistral anahtarı gerekiyorsa, yalnızca bu makinedeki `.env` dosyasında
 
 Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna gerek yoktur. Ham Shopier sipariş gövdesi, adres, telefon veya kimlik numarası kaydedilmez. Sadece sipariş numarası, ürün ID'si, lisans durumu ve alıcı e-postasının HMAC özeti saklanır. Hesap e-postaları HMAC özetiyle eşleştirilir; parolalar düz metin olarak saklanmaz.
@@ -25,12 +25,12 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
    - `SHOPIER_LICENSE_PRODUCTS`: ör. `{"SHOPIER_PRODUCT_ID":365}`. Değer gün sayısıdır; `0` ömür boyu lisans anlamına gelir.
    - `SHOPIER_CHECKOUT_URL`: satın alma sayfasının herkese açık adresi.
    - `PUBLIC_API_BASE_URL`: sunucunun herkese açık HTTPS kök adresi; parola sıfırlama bağlantıları burada oluşturulur.
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: kendi posta sağlayıcının SMTP bilgileri. Normal posta parolan yerine sağlayıcının uygulama parolasını kullan.
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: hesap/lisans doğrulama kodları ve parola sıfırlama e-postaları için posta sağlayıcının SMTP bilgileri. Normal posta parolan yerine sağlayıcının uygulama parolasını kullan.
    - `GEMINI_API_KEY` veya `MISTRAL_API_KEY`: seçtiğin AI sağlayıcısının anahtarı. Eklenti ZIP'ine koyma.
 6. `npm start` veya Windows'ta `start.bat` ile başlat.
 7. Caddy/Nginx gibi bir TLS reverse proxy ile HTTPS aç. Caddy örneği `Caddyfile.example` dosyasındadır; Shopier'e verilecek URL `https://api.senin-domainin.tld/api/webhooks/shopier` olmalı.
 8. Shopier geliştirici panelinde `order.created` webhook'u oluştur. İmzayı `Shopier-Signature` başlığından doğrula; bu sunucu doğrulamayı yapar.
-9. Uzantı popup'ında **Hesap oluştur** bölümüne API adresini, Shopier sipariş numarasını, satın alma e-postasını ve parolanı gir. İlk bağlantıda uzantıya sunucu erişim izni ver. Sonraki girişlerde e-posta ve parolanı kullan; hesap e-postası cihazda HMAC oturum belirteciyle ilişkilendirilir, parolalar sunucuda scrypt ile özetlenir.
+9. Uzantıda hesap oluştururken veya lisansı etkinleştirirken Shopier'de kullandığın e-posta adresini gir. Sunucu, imzalı ve ödenmiş Shopier siparişine bağlı e-postaya 6 haneli doğrulama kodu gönderir; sipariş numarası kullanıcıdan istenmez. Kod 10 dakika geçerlidir. İlk bağlantıda uzantıya sunucu erişim izni ver. Sonraki girişlerde e-posta ve parolanı kullan; e-posta HMAC özetiyle eşleştirilir, parolalar sunucuda scrypt ile özetlenir.
 
 `SHOPIER_LICENSE_PRODUCTS` ayarlanana kadar ürün webhook'u lisans oluşturmaz. Sadece yapılandırılmış ürünler ve `paymentStatus=paid` siparişleri kabul edilir. Aynı webhook tekrar gelirse ikinci lisans oluşturulmaz.
 
@@ -39,9 +39,11 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 - `GET /api/healthz` — sağlık kontrolü
 - `GET /api/public-config` — herkese açık satın alma bağlantısı
 - `POST /api/webhooks/shopier` — imzalı Shopier `order.created` bildirimi
-- `POST /api/license/activate` — sipariş numarası + satın alma e-postası ile cihaz etkinleştirme
+- `POST /api/license/activate` — satın alma e-postasına lisans etkinleştirme kodu gönderme
+- `POST /api/license/activate/verify` — e-posta kodunu doğrulayıp cihaz lisansını etkinleştirme
 - `POST /api/license/validate` — kısa ömürlü erişim belirtecini yenileme
-- `POST /api/account/register` — ücretli Shopier siparişiyle e-posta/parola hesabı oluşturma
+- `POST /api/account/register` — satın alma e-postasına hesap doğrulama kodu gönderme
+- `POST /api/account/register/verify` — kodu doğrulayıp hesabı oluşturma
 - `POST /api/account/login` — e-posta/parola girişi ve aboneliğe bağlı lisans token'ı
 - `GET /api/account/subscriptions` — hesaba bağlı abonelikler
 - `POST /api/account/password/reset/request` — tek kullanımlık parola sıfırlama bağlantısını e-postayla gönderme

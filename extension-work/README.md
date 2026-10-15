@@ -1,5 +1,12 @@
 # Takipçi Paneli
 
+## 1.0.152 Hesap ve lisans doğrulamasında sipariş numarası kaldırıldı
+
+- Hesap oluşturma ve doğrudan lisans etkinleştirme sırasında kullanıcıdan
+  Shopier sipariş numarası istenmez.
+- Satın alma e-postasına gönderilen, 10 dakika geçerli 6 haneli kod
+  doğrulanmadan hesap veya cihaz lisansı oluşturulmaz.
+
 ## 1.0.150 Tüm uzantı işlemlerinde lisans doğrulaması
 
 - Instagram sayfasından alınan profil, kullanıcı ve GraphQL işlem bilgileri

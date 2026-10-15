@@ -1,8 +1,11 @@
-import { createHmac, randomBytes, scryptSync } from "node:crypto";
+import { createHmac, randomBytes, randomInt, scryptSync } from "node:crypto";
 import nodemailer from "nodemailer";
 
 const ACCOUNT_SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+const PURCHASE_CODE_TTL_MS = 10 * 60 * 1000;
+const PURCHASE_CODE_RESEND_WAIT_MS = 60 * 1000;
+const PURCHASE_CODE_MAX_ATTEMPTS = 5;
 
 export function createAccountHandlers({
   db,
@@ -27,8 +30,170 @@ export function createAccountHandlers({
     return typeof password === "string" && password.length >= 8 && password.length <= 256;
   }
 
+  function validDeviceId(deviceId) {
+    return /^[a-zA-Z0-9_-]{16,128}$/.test(deviceId);
+  }
+
   function passwordDigest(password, salt) {
     return scryptSync(password, salt, 64).toString("base64url");
+  }
+
+  function findActiveOrder(emailHash) {
+    return db.prepare(`
+      SELECT order_id, product_id, payment_status, email_hash, expires_at, revoked_at, device_limit
+      FROM shopier_orders
+      WHERE email_hash = ? AND payment_status = 'paid' AND revoked_at IS NULL
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY paid_at DESC LIMIT 1
+    `).get(emailHash, Date.now());
+  }
+
+  function smtpSettings() {
+    if (
+      !process.env.SMTP_HOST ||
+      !process.env.SMTP_USER ||
+      !process.env.SMTP_PASS ||
+      !process.env.SMTP_FROM ||
+      !Number.isInteger(Number(process.env.SMTP_PORT)) ||
+      Number(process.env.SMTP_PORT) < 1 ||
+      Number(process.env.SMTP_PORT) > 65535
+    ) {
+      throw Object.assign(new Error("E-posta gönderimi için SMTP sunucu ayarları eksik."), { status: 503 });
+    }
+    return {
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: String(process.env.SMTP_SECURE).toLowerCase() === "true",
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    };
+  }
+
+  async function sendPurchaseVerificationCode(email, code) {
+    const transporter = nodemailer.createTransport(smtpSettings());
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "RODON satın alma doğrulama kodu",
+      text: `RODON hesabını oluşturmak veya lisansını etkinleştirmek için doğrulama kodun: ${code}\n\nKod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.`,
+      html: `<p>RODON hesabını oluşturmak veya lisansını etkinleştirmek için doğrulama kodun:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>Kod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.</p>`,
+    });
+  }
+
+  function codeDigest(emailHash, purpose, code) {
+    return hmacHex(process.env.LICENSE_DATA_SECRET, `purchase-email:${purpose}:${emailHash}:${code}`);
+  }
+
+  function genericVerificationResponse(response) {
+    return writeJson(response, 200, {
+      ok: true,
+      verificationRequired: true,
+      message: "Bu e-posta için etkin bir Shopier satın alımı varsa doğrulama kodu gönderildi.",
+    });
+  }
+
+  async function requestPurchaseVerification(request, response, purpose) {
+    const bucket = purpose === "registration" ? "account-register" : "license-activate";
+    if (isRateLimited(request, bucket)) {
+      return writeJson(response, 429, { ok: false, error: "Çok fazla istek; daha sonra tekrar deneyin." });
+    }
+    requireConfiguredLicenseSecrets();
+    smtpSettings();
+
+    const input = await readJson(request, 16 * 1024);
+    const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
+    const password = typeof input?.password === "string" ? input.password : "";
+    const deviceId = String(input?.deviceId || "").trim();
+    if (!validEmail(email)) {
+      return writeJson(response, 400, { ok: false, error: "Geçerli bir e-posta adresi girin." });
+    }
+    if (purpose === "registration" && !validPassword(password)) {
+      return writeJson(response, 400, { ok: false, error: "Parola en az 8 karakter olmalı." });
+    }
+    if (purpose === "license-activation" && !validDeviceId(deviceId)) {
+      return writeJson(response, 400, { ok: false, error: "Cihaz bilgisi geçersiz." });
+    }
+
+    const emailHash = emailDigest(email);
+    const existingAccount = purpose === "registration"
+      ? db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)
+      : null;
+    const order = findActiveOrder(emailHash);
+    if (existingAccount || !order) return genericVerificationResponse(response);
+
+    const now = Date.now();
+    const existingCode = db.prepare(`
+      SELECT created_at FROM purchase_email_verifications
+      WHERE email_hash = ? AND purpose = ?
+    `).get(emailHash, purpose);
+    if (existingCode && now - Number(existingCode.created_at) < PURCHASE_CODE_RESEND_WAIT_MS) {
+      return genericVerificationResponse(response);
+    }
+
+    const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+    const salt = purpose === "registration" ? randomBytes(16).toString("base64url") : null;
+    const passwordHash = purpose === "registration" ? passwordDigest(password, salt) : null;
+    const codeHash = codeDigest(emailHash, purpose, code);
+    db.prepare(`
+      INSERT INTO purchase_email_verifications
+        (email_hash, purpose, code_hash, device_id, password_salt, password_hash, expires_at, attempts, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+      ON CONFLICT(email_hash, purpose) DO UPDATE SET
+        code_hash = excluded.code_hash,
+        device_id = excluded.device_id,
+        password_salt = excluded.password_salt,
+        password_hash = excluded.password_hash,
+        expires_at = excluded.expires_at,
+        attempts = 0,
+        created_at = excluded.created_at
+    `).run(
+      emailHash,
+      purpose,
+      codeHash,
+      purpose === "license-activation" ? deviceId : null,
+      salt,
+      passwordHash,
+      now + PURCHASE_CODE_TTL_MS,
+      now,
+    );
+
+    try {
+      await sendPurchaseVerificationCode(email, code);
+    } catch {
+      db.prepare(`
+        DELETE FROM purchase_email_verifications
+        WHERE email_hash = ? AND purpose = ? AND code_hash = ?
+      `).run(emailHash, purpose, codeHash);
+      console.warn("[license-api] Purchase verification email could not be sent.");
+      return writeJson(response, 503, { ok: false, error: "Doğrulama e-postası gönderilemedi. Sunucunun posta ayarlarını kontrol edin." });
+    }
+    return genericVerificationResponse(response);
+  }
+
+  function checkedPurchaseVerification(emailHash, purpose, code) {
+    const pending = db.prepare(`
+      SELECT code_hash, device_id, password_salt, password_hash, expires_at, attempts
+      FROM purchase_email_verifications WHERE email_hash = ? AND purpose = ?
+    `).get(emailHash, purpose);
+    if (!pending) return null;
+    if (Number(pending.expires_at) <= Date.now() || Number(pending.attempts) >= PURCHASE_CODE_MAX_ATTEMPTS) {
+      db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = ?")
+        .run(emailHash, purpose);
+      return null;
+    }
+    if (!secureTextEqual(pending.code_hash, codeDigest(emailHash, purpose, code))) {
+      const attempts = Number(pending.attempts) + 1;
+      if (attempts >= PURCHASE_CODE_MAX_ATTEMPTS) {
+        db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = ?")
+          .run(emailHash, purpose);
+      } else {
+        db.prepare(`
+          UPDATE purchase_email_verifications SET attempts = ?
+          WHERE email_hash = ? AND purpose = ?
+        `).run(attempts, emailHash, purpose);
+      }
+      return null;
+    }
+    return pending;
   }
 
   function listSubscriptions(emailHash) {
@@ -107,45 +272,99 @@ export function createAccountHandlers({
   }
 
   async function register(request, response) {
-    if (isRateLimited(request, "account-register")) {
+    return requestPurchaseVerification(request, response, "registration");
+  }
+
+  async function verifyRegistration(request, response) {
+    if (isRateLimited(request, "account-register-verify")) {
       return writeJson(response, 429, { ok: false, error: "Çok fazla deneme; daha sonra tekrar deneyin." });
     }
     requireConfiguredLicenseSecrets();
     const input = await readJson(request, 16 * 1024);
     const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
-    const password = typeof input?.password === "string" ? input.password : "";
-    const orderId = String(input?.orderId || "").trim().slice(0, 160);
-    if (!validEmail(email) || !validPassword(password) || !orderId) {
-      return writeJson(response, 400, {
-        ok: false,
-        error: "Geçerli e-posta, en az 8 karakterli parola ve Shopier sipariş numarası gerekli.",
-      });
+    const code = String(input?.code || "").trim();
+    if (!validEmail(email) || !/^\d{6}$/.test(code)) {
+      return writeJson(response, 400, { ok: false, error: "E-posta veya doğrulama kodu geçersiz." });
     }
 
-    const emailHash = emailDigest(email);
-    const order = db.prepare(`
-      SELECT order_id, payment_status, expires_at, revoked_at
-      FROM shopier_orders WHERE order_id = ? AND email_hash = ?
-    `).get(orderId, emailHash);
-    if (
-      !order ||
-      order.payment_status !== "paid" ||
-      order.revoked_at ||
-      (order.expires_at !== null && Number(order.expires_at) <= Date.now())
-    ) {
-      return writeJson(response, 401, { ok: false, error: "Bu e-posta ile eşleşen etkin, ödenmiş bir sipariş bulunamadı." });
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const emailHash = emailDigest(email);
+      const pending = checkedPurchaseVerification(emailHash, "registration", code);
+      if (!pending) {
+        db.exec("COMMIT");
+        return writeJson(response, 401, { ok: false, error: "Kod yanlış, süresi dolmuş veya kullanılmış. Yeni kod isteyip tekrar deneyin." });
+      }
+      if (!findActiveOrder(emailHash)) {
+        db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
+          .run(emailHash);
+        db.exec("COMMIT");
+        return writeJson(response, 401, { ok: false, error: "Bu e-posta için etkin bir satın alma bulunamadı." });
+      }
+      if (db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)) {
+        db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
+          .run(emailHash);
+        db.exec("COMMIT");
+        return writeJson(response, 409, { ok: false, error: "Bu e-posta için hesap zaten var. Giriş yapın veya parolanızı sıfırlayın." });
+      }
+
+      const now = Date.now();
+      db.prepare(`
+        INSERT INTO account_users (email_hash, password_salt, password_hash, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(emailHash, pending.password_salt, pending.password_hash, now, now);
+      db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
+        .run(emailHash);
+      db.exec("COMMIT");
+      return writeJson(response, 201, { ok: true });
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
     }
-    if (db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)) {
-      return writeJson(response, 409, { ok: false, error: "Bu e-posta için hesap zaten var. Giriş yapın veya parolanızı sıfırlayın." });
+  }
+
+  async function requestLicenseActivation(request, response) {
+    return requestPurchaseVerification(request, response, "license-activation");
+  }
+
+  async function verifyLicenseActivation(request, response) {
+    if (isRateLimited(request, "license-activate-verify")) {
+      return writeJson(response, 429, { ok: false, error: "Çok fazla deneme; daha sonra tekrar deneyin." });
+    }
+    requireConfiguredLicenseSecrets();
+    const input = await readJson(request, 16 * 1024);
+    const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
+    const code = String(input?.code || "").trim();
+    const deviceId = String(input?.deviceId || "").trim();
+    if (!validEmail(email) || !/^\d{6}$/.test(code) || !validDeviceId(deviceId)) {
+      return writeJson(response, 400, { ok: false, error: "E-posta, doğrulama kodu veya cihaz bilgisi geçersiz." });
     }
 
-    const salt = randomBytes(16).toString("base64url");
-    const now = Date.now();
-    db.prepare(`
-      INSERT INTO account_users (email_hash, password_salt, password_hash, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(emailHash, salt, passwordDigest(password, salt), now, now);
-    return writeJson(response, 201, { ok: true });
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const emailHash = emailDigest(email);
+      const pending = checkedPurchaseVerification(emailHash, "license-activation", code);
+      if (!pending || pending.device_id !== deviceId) {
+        db.exec("COMMIT");
+        return writeJson(response, 401, { ok: false, error: "Kod yanlış, süresi dolmuş veya bu cihaz için istenmemiş." });
+      }
+      const order = findActiveOrder(emailHash);
+      if (!order) {
+        db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'license-activation'")
+          .run(emailHash);
+        db.exec("COMMIT");
+        return writeJson(response, 401, { ok: false, error: "Bu e-posta için etkin bir satın alma bulunamadı." });
+      }
+
+      const license = issueLicense(order, deviceId);
+      db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'license-activation'")
+        .run(emailHash);
+      db.exec("COMMIT");
+      return writeJson(response, 200, { ok: true, ...license });
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async function login(request, response) {
@@ -171,13 +390,7 @@ export function createAccountHandlers({
       return writeJson(response, 401, { ok: false, error: "E-posta veya parola hatalı." });
     }
 
-    const activeOrder = db.prepare(`
-      SELECT order_id, expires_at, device_limit
-      FROM shopier_orders
-      WHERE email_hash = ? AND payment_status = 'paid' AND revoked_at IS NULL
-        AND (expires_at IS NULL OR expires_at > ?)
-      ORDER BY paid_at DESC LIMIT 1
-    `).get(emailHash, Date.now());
+    const activeOrder = findActiveOrder(emailHash);
     const license = activeOrder ? issueLicense(activeOrder, deviceId) : null;
 
     const sessionToken = randomBytes(48).toString("base64url");
@@ -243,20 +456,13 @@ export function createAccountHandlers({
       publicBaseUrl.password ||
       publicBaseUrl.search ||
       publicBaseUrl.hash ||
-      !["", "/"].includes(publicBaseUrl.pathname) ||
-      !process.env.SMTP_HOST ||
-      !process.env.SMTP_USER ||
-      !process.env.SMTP_PASS ||
-      !process.env.SMTP_FROM ||
-      !Number.isInteger(Number(process.env.SMTP_PORT)) ||
-      Number(process.env.SMTP_PORT) < 1 ||
-      Number(process.env.SMTP_PORT) > 65535
+      !["", "/"].includes(publicBaseUrl.pathname)
     ) {
       throw Object.assign(new Error("Parola sıfırlama sunucu ayarları eksik."), { status: 503 });
     }
     return {
       publicBaseUrl: publicBaseUrl.origin,
-      secure: String(process.env.SMTP_SECURE).toLowerCase() === "true",
+      ...smtpSettings(),
     };
   }
 
@@ -286,10 +492,10 @@ export function createAccountHandlers({
       const resetUrl = `${mailSettings.publicBaseUrl}/api/account/password/reset?token=${encodeURIComponent(token)}`;
       try {
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT),
+          host: mailSettings.host,
+          port: mailSettings.port,
           secure: mailSettings.secure,
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+          auth: mailSettings.auth,
         });
         await transporter.sendMail({
           from: process.env.SMTP_FROM,
@@ -414,5 +620,15 @@ form.addEventListener("submit",async event=>{
     return writeJson(response, 200, { ok: true });
   }
 
-  return { register, login, subscriptions, logout, requestPasswordReset, resetPassword };
+  return {
+    register,
+    verifyRegistration,
+    requestLicenseActivation,
+    verifyLicenseActivation,
+    login,
+    subscriptions,
+    logout,
+    requestPasswordReset,
+    resetPassword,
+  };
 }

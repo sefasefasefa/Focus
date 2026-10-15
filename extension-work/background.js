@@ -268,18 +268,36 @@ async function validateExtensionLicense(force = false) {
   }
 }
 
-async function activateExtensionLicense(input = {}) {
+async function requestExtensionLicenseCode(input = {}) {
   const apiBase = normalizeLicenseApiBase(input.apiBaseUrl);
-  const orderId = String(input.orderId || '').trim();
-  const email = String(input.email || '').trim();
-  if (!orderId || !email.includes('@')) {
-    return { ok: false, error: 'Shopier sipariş numarası ve satın alma e-postası gerekli.' };
+  const email = String(input.email || '').trim().toLowerCase();
+  if (!email.includes('@')) {
+    return { ok: false, error: 'Satın alma e-posta adresini gir.' };
   }
   const deviceId = await getOrCreateLicenseDeviceId();
   await setLicenseStorage({ [LICENSE_API_URL_KEY]: apiBase });
   const { response, payload } = await postLicenseApi(apiBase, '/api/license/activate', {
-    orderId,
     email,
+    deviceId,
+  });
+  if (!response.ok || payload?.verificationRequired !== true) {
+    return { ok: false, error: String(payload?.error || 'Doğrulama kodu istenemedi.') };
+  }
+  return { ok: true, verificationRequired: true };
+}
+
+async function activateExtensionLicense(input = {}) {
+  const apiBase = normalizeLicenseApiBase(input.apiBaseUrl);
+  const email = String(input.email || '').trim().toLowerCase();
+  const code = String(input.code || '').trim();
+  if (!email.includes('@') || !/^\d{6}$/.test(code)) {
+    return { ok: false, error: 'Satın alma e-postası ve 6 haneli doğrulama kodu gerekli.' };
+  }
+  const deviceId = await getOrCreateLicenseDeviceId();
+  await setLicenseStorage({ [LICENSE_API_URL_KEY]: apiBase });
+  const { response, payload } = await postLicenseApi(apiBase, '/api/license/activate/verify', {
+    email,
+    code,
     deviceId,
   });
   if (!response.ok || !payload?.accessToken) {
@@ -7908,7 +7926,19 @@ function dispatchExtensionMessage(msg, _sender, reply) {
     return true;
   }
   if (msg.type === 'LICENSE_ACTIVATE') {
-    activateExtensionLicense(msg.payload || {})
+    requestExtensionLicenseCode(msg.payload || msg)
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
+  if (msg.type === 'LICENSE_ACTIVATE_REQUEST') {
+    requestExtensionLicenseCode(msg.payload || msg)
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
+  if (msg.type === 'LICENSE_ACTIVATE_VERIFY') {
+    activateExtensionLicense(msg.payload || msg)
       .then(reply)
       .catch(error => reply({ ok: false, error: error?.message || String(error) }));
     return true;
@@ -9243,6 +9273,8 @@ const LICENSE_FREE_EXTENSION_MESSAGES = new Set([
   'LICENSE_PUBLIC_CONFIG',
   'LICENSE_GET_STATUS',
   'LICENSE_ACTIVATE',
+  'LICENSE_ACTIVATE_REQUEST',
+  'LICENSE_ACTIVATE_VERIFY',
   'CLEAR_EXTENSION_DATA',
 ]);
 

@@ -18,6 +18,7 @@
     message: "",
     messageKind: "",
     lastEmail: "",
+    registerEmail: "",
   };
 
   function storageGet(keys) {
@@ -199,10 +200,9 @@
     root.innerHTML = `
       <section aria-labelledby="account-title">
         <button class="account-back" type="button" data-action="back">← Girişe dön</button>
-        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Hesap oluştur</h2><p class="account-subtitle">Ödenmiş Shopier siparişin gerekir.</p></div></div>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Hesap oluştur</h2><p class="account-subtitle">Satın alma e-postanı doğrula. Shopier sipariş numarası gerekmez.</p></div></div>
         <form class="account-form" id="account-register-form">
           <label class="account-field" for="account-email">Satın alma e-postası<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
-          <label class="account-field" for="account-order">Shopier sipariş numarası<input class="account-input" id="account-order" name="orderId" type="text" autocomplete="off" required></label>
           <label class="account-field" for="account-password">Parola (en az 8 karakter)<input class="account-input" id="account-password" name="password" type="password" minlength="8" maxlength="256" autocomplete="new-password" required></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Hesap oluşturuluyor…" : "Hesap oluştur"}</button>
         </form>
@@ -213,6 +213,26 @@
     root.querySelector('[data-action="back"]').addEventListener("click", () => {
       clearMessage();
       api.view = "login";
+      render();
+    });
+    renderMessage();
+  }
+
+  function renderRegisterVerify() {
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <button class="account-back" type="button" data-action="back">← Kayıt bilgilerine dön</button>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">E-postanı doğrula</h2><p class="account-subtitle">Satın alma e-postana gönderilen 6 haneli kodu gir. Kod 10 dakika geçerlidir.</p></div></div>
+        <form class="account-form" id="account-register-verify-form">
+          <label class="account-field" for="account-verification-code">Doğrulama kodu<input class="account-input" id="account-verification-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+          <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Doğrulanıyor…" : "E-postayı doğrula ve hesabı oluştur"}</button>
+        </form>
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    root.querySelector("#account-register-verify-form").addEventListener("submit", handleRegisterVerify);
+    root.querySelector('[data-action="back"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "register";
       render();
     });
     renderMessage();
@@ -322,6 +342,7 @@
     if (api.view === "home") renderHome();
     else if (api.view === "settings") renderSettings();
     else if (api.view === "register") renderRegister();
+    else if (api.view === "register-verify") renderRegisterVerify();
     else if (api.view === "reset") renderReset();
     else renderLogin();
   }
@@ -407,7 +428,6 @@
     if (api.busy) return;
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") || "").trim();
-    const orderId = String(form.get("orderId") || "").trim();
     const password = String(form.get("password") || "");
     api.lastEmail = email;
     let apiBaseUrl;
@@ -428,18 +448,56 @@
       await storageSet({ [API_URL_KEY]: apiBaseUrl });
       await requestJson(apiBaseUrl, "/api/account/register", {
         method: "POST",
-        body: { email, orderId, password },
+        body: { email, password },
+      });
+      api.registerEmail = email;
+      api.busy = false;
+      api.view = "register-verify";
+      clearMessage();
+      render();
+      setMessage("E-postana uygun etkin bir satın alma varsa doğrulama kodu gönderildi.", "success");
+    } catch (error) {
+      api.busy = false;
+      render();
+      setMessage(error.message || "Hesap oluşturulamadı.", "error");
+    }
+  }
+
+  async function handleRegisterVerify(event) {
+    event.preventDefault();
+    if (api.busy) return;
+    const form = new FormData(event.currentTarget);
+    const code = String(form.get("code") || "").trim();
+    let apiBaseUrl;
+    let permissionRequest;
+    try {
+      apiBaseUrl = getFormServerUrl();
+      if (!/^\d{6}$/.test(code)) throw new Error("E-postana gelen 6 haneli kodu gir.");
+      permissionRequest = requestServerPermission(apiBaseUrl);
+    } catch (error) {
+      setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
+      return;
+    }
+    api.busy = true;
+    render();
+    try {
+      await permissionRequest;
+      api.url = apiBaseUrl;
+      await requestJson(apiBaseUrl, "/api/account/register/verify", {
+        method: "POST",
+        body: { email: api.registerEmail, code },
       });
       api.busy = false;
       api.view = "login";
       clearMessage();
       render();
-      root.querySelector("#account-email").value = email;
-      setMessage("Hesap oluşturuldu. Şimdi parolanla giriş yapabilirsin.", "success");
+      root.querySelector("#account-email").value = api.registerEmail;
+      setMessage("E-posta doğrulandı ve hesap oluşturuldu. Şimdi giriş yapabilirsin.", "success");
+      api.registerEmail = "";
     } catch (error) {
       api.busy = false;
       render();
-      setMessage(error.message || "Hesap oluşturulamadı.", "error");
+      setMessage(error.message || "E-posta doğrulanamadı.", "error");
     }
   }
 
