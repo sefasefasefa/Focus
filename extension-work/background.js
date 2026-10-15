@@ -181,6 +181,50 @@ async function validateExtensionLicense(force = false) {
     };
   }
   try {
+    if (tokenExpiresAt <= Date.now() + 15_000 && license.refreshToken) {
+      const refreshed = await postLicenseApi(
+        apiBase,
+        '/api/license/refresh',
+        { refreshToken: license.refreshToken },
+      );
+      if (refreshed.response.ok && refreshed.payload?.accessToken) {
+        const nextLicense = {
+          apiBaseUrl: apiBase,
+          deviceId: license.deviceId || '',
+          accessToken: refreshed.payload.accessToken,
+          refreshToken: license.refreshToken,
+          tokenExpiresAt: Date.now() + 9 * 60 * 1000,
+          validatedAt: Date.now(),
+          expiresAt: refreshed.payload.expiresAt == null
+            ? null
+            : Number(refreshed.payload.expiresAt),
+        };
+        await setLicenseStorage({
+          [LICENSE_API_URL_KEY]: apiBase,
+          [LICENSE_STATE_KEY]: nextLicense,
+        });
+        return {
+          active: true,
+          expiresAt: nextLicense.expiresAt,
+          apiBaseUrl: apiBase,
+          accessToken: nextLicense.accessToken,
+        };
+      }
+      if ([401, 403].includes(refreshed.response.status)) {
+        await chrome.storage.local.remove(LICENSE_STATE_KEY);
+        return {
+          active: false,
+          expired: refreshed.response.status === 403,
+          message: String(refreshed.payload?.error || 'Lisans oturumu yenilenemedi. Tekrar etkinleştirin.'),
+        };
+      }
+      if (!refreshed.response.ok) {
+        return {
+          active: false,
+          message: String(refreshed.payload?.error || 'Lisans sunucusu token yenileme isteğini reddetti.'),
+        };
+      }
+    }
     const { response, payload } = await postLicenseApi(
       apiBase,
       '/api/license/validate',
@@ -201,6 +245,7 @@ async function validateExtensionLicense(force = false) {
       apiBaseUrl: apiBase,
       deviceId: license.deviceId || '',
       accessToken: payload.accessToken,
+      refreshToken: license.refreshToken || '',
       tokenExpiresAt: Date.now() + 9 * 60 * 1000,
       validatedAt: Date.now(),
       expiresAt: payload.expiresAt == null ? null : Number(payload.expiresAt),
@@ -244,6 +289,7 @@ async function activateExtensionLicense(input = {}) {
     apiBaseUrl: apiBase,
     deviceId,
     accessToken: payload.accessToken,
+    refreshToken: String(payload.refreshToken || ''),
     tokenExpiresAt: Date.now() + 9 * 60 * 1000,
     validatedAt: Date.now(),
     expiresAt: payload.expiresAt == null ? null : Number(payload.expiresAt),
@@ -618,6 +664,7 @@ async function consumeDiscoveryQuota() {
 }
 
 async function classifyGenderInBackground(users, options = {}) {
+  await requireActiveLicense();
   const inputUsers = Array.isArray(users) ? users : [];
   const stored = await new Promise(resolve =>
     chrome.storage.local.get(['__ai_gender_labels_v1', LICENSE_API_URL_KEY], resolve)
@@ -1790,6 +1837,8 @@ async function runGraphQLMutationUnqueuedLegacy(
   friendlyName,
   endpointPath = '/api/graphql',
 ) {
+  return runGraphQLMutationUnqueued(docId, variables, friendlyName, endpointPath);
+
   const storage = await new Promise(resolve =>
     chrome.storage.local.get(['igUser', 'igGqlTokens'], resolve)
   );
@@ -2203,6 +2252,8 @@ async function callGraphQLMutation(
 // Mobil uygulamaların kullandığı REST v1 endpoint'i doc_id gerektirmez ve
 // bu yüzden çok daha kararlıdır.
 async function likeMediaWithRESTUnqueuedLegacy(mediaId) {
+  return likeMediaWithRESTUnqueued(mediaId);
+
   let lastError;
   for (let attempt = 0; attempt < 2; attempt++) {
     const tabId = await getInstagramTab();
@@ -3298,6 +3349,17 @@ async function getInstagramTab() {
 
 // ── Content script üzerinden REST API çağrısı ─────────────────────────
 async function execRestInTab(tabId, url, method, bodyObj) {
+  const targetUrl = new URL(url, 'https://www.instagram.com');
+  if (targetUrl.origin !== 'https://www.instagram.com') {
+    throw new Error('Yalnızca Instagram API isteklerine izin verilir.');
+  }
+  return instagramServerRequest(
+    targetUrl.pathname,
+    Object.fromEntries(targetUrl.searchParams.entries()),
+    method,
+    bodyObj,
+  );
+
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: async (url, method, bodyStr) => {
@@ -3506,6 +3568,10 @@ async function execRestInTab(tabId, url, method, bodyObj) {
 
 // ── Ana API çağrısı (sekme hatalarında yeniden dener) ─────────────────
 async function apiCallUnqueued(endpoint, params, method = 'GET', body) {
+  return instagramServerRequest(endpoint, params, method, body);
+
+  // Retained below only as historical context; all active API calls now use
+  // the licensed server proxy above.
   const isTabError = e =>
     e instanceof Error &&
     (e.message.includes('No tab with id') ||
@@ -3705,11 +3771,6 @@ async function apiCallUnqueued(endpoint, params, method = 'GET', body) {
 }
 
 async function apiCall(endpoint, params, method = 'GET', body) {
-  // Use the local identity only to bootstrap the panel before any server
-  // operation; all other Instagram requests go through the licensed server.
-  if (endpoint === '/api/v1/accounts/current_user/?edit=true' && method === 'GET') {
-    return apiCallUnqueued(endpoint, params, method, body);
-  }
   return withInstagramRequestSlot(
     `api:${method}:${endpoint}`,
     () => instagramServerRequest(endpoint, params, method, body),
@@ -3926,31 +3987,31 @@ async function getUserViaGraphQL(tabId) {
           fb_api_caller_class: 'RelayModern',
         });
         if (friendlyName) body.set('fb_api_req_friendly_name', friendlyName);
-        const resp = await fetch('https://www.instagram.com/api/graphql', {
+        const proxyResponse = await chrome.runtime.sendMessage({
+          type: 'LICENSED_INSTAGRAM_REQUEST',
+          endpoint: '/api/graphql',
+          params: {},
           method: 'POST',
-          credentials: 'include',
+          body: body.toString(),
           headers: {
             'content-type': 'application/x-www-form-urlencoded',
             'x-asbd-id': '359341',
-            'x-csrftoken': csrf,
+            'x-fb-dtsg': fbDtsg,
+            'x-fb-friendly-name': friendlyName || 'PolarisProfilePageContentQuery',
             'x-fb-lsd': lsd,
             'x-ig-app-id': '936619743392459',
-            'x-fb-friendly-name': friendlyName || 'PolarisProfilePageContentQuery',
             'x-ig-max-touch-points': '1',
             'x-ig-www-claim': '0',
+            'x-requested-with': 'XMLHttpRequest',
           },
-          body: body.toString(),
-          signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 60000); return c.signal; })(),
         });
-        const text = await resp.text();
-        if (!text || text.trimStart().startsWith('<')) {
-          throw new Error(
-            resp.status === 429
-              ? 'Instagram istek sınırı uyguladı (HTTP 429)'
-              : `HTML yanıt (${resp.status})`,
-          );
+        if (!proxyResponse?.ok) {
+          throw new Error(proxyResponse?.error || 'Lisanslı Instagram isteği başarısız oldu.');
         }
-        const json = JSON.parse(text);
+        const json = proxyResponse.data;
+        if (!json || typeof json !== 'object') {
+          throw new Error('Lisanslı Instagram isteği geçersiz yanıt döndürdü.');
+        }
         if (json.errors?.length) throw new Error(JSON.stringify(json.errors).slice(0, 100));
         return json;
       };
@@ -7785,7 +7846,32 @@ async function getViewerProfileViaProfileTab(sourceTabId) {
 }
 
 // ── Mesaj dinleyicileri ───────────────────────────────────────────────
-chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+function isInstagramContentScriptSender(sender) {
+  return sender?.id === chrome.runtime.id;
+}
+
+function dispatchExtensionMessage(msg, _sender, reply) {
+  if (msg.type === 'LICENSED_INSTAGRAM_REQUEST') {
+    if (!isInstagramContentScriptSender(_sender)) {
+      reply({ ok: false, error: 'Instagram isteğinin kaynağı doğrulanamadı.' });
+      return false;
+    }
+    instagramServerRequest(
+      String(msg.endpoint || ''),
+      msg.params || {},
+      String(msg.method || 'GET').toUpperCase(),
+      msg.body,
+      msg.headers || {},
+    )
+      .then(data => reply({ ok: true, data }))
+      .catch(error => reply({
+        ok: false,
+        error: error?.message || 'İstek için etkin lisans gerekli.',
+        status: Number(error?.status) || null,
+      }));
+    return true;
+  }
+
   if (msg.type === 'LICENSE_PUBLIC_CONFIG') {
     getLicensePublicConfig(msg.apiBaseUrl)
       .then(reply)
@@ -8664,32 +8750,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   }
 
   if (msg.type === 'DOM_LIKE_STORY') {
-    if (_domStoryLikeInFlight) {
-      reply({ ok: false, error: 'Hikaye işlemi zaten devam ediyor — ikinci istek gönderilmedi' });
-      return false;
-    }
-    _domStoryLikeInFlight = true;
-    withInstagramRequestSlot(
-      'dom-story-like',
-      async () => {
-        await requireActiveLicense();
-        const tabId = await getInstagramTab();
-        await waitForInstagramContentScript(tabId);
-        const res = await sendInstagramMessage(
-          tabId,
-          { type: 'DOM_LIKE_STORY', like: msg.like },
-          15000,
-        );
-        if (!res?.ok) {
-          throw new Error(res?.error || "Hikaye butonu DOM'da bulunamadı");
-        }
-        return { ok: true };
-      },
-    ).then(
-      result => reply(result),
-      error => reply({ ok: false, error: error.message || String(error) }),
-    ).finally(() => { _domStoryLikeInFlight = false; });
-    return true;
+    reply({
+      ok: false,
+      error: 'Doğrudan sayfa tıklaması kapalı; hikâye beğenisi lisanslı Instagram API isteğiyle yapılmalıdır.',
+    });
+    return false;
   }
 
   if (msg.type === 'IG_AUTO_GET') {
@@ -8769,34 +8834,30 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
       chrome.scripting.executeScript({
         target: { tabId: usable.id },
         func: async () => {
-          let resp;
-          try {
-            resp = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
-              method: 'GET',
-              credentials: 'include',
-              redirect: 'follow',
-              headers: {
-                'accept': 'application/json',
-                'x-ig-app-id': '936619743392459',
-                'x-requested-with': 'XMLHttpRequest',
-              },
-            });
-          } catch (e) {
-            return { ok: false, error: 'fetch:' + (e?.message || String(e)) };
-          }
-          try {
-            const text = await resp.text();
+          const result = await chrome.runtime.sendMessage({
+            type: 'LICENSED_INSTAGRAM_REQUEST',
+            endpoint: '/api/v1/accounts/current_user/',
+            params: { edit: 'true' },
+            method: 'GET',
+          });
+          if (!result?.ok) {
             return {
               ok: true,
-              status: resp.status,
-              ct: (resp.headers.get('content-type') || '').toLowerCase(),
-              redirected: resp.redirected,
-              url: resp.url,
-              body: text.slice(0, 800),
+              status: Number(result?.status) || 403,
+              ct: 'application/json',
+              redirected: false,
+              url: 'https://www.instagram.com/api/v1/accounts/current_user/',
+              body: JSON.stringify({ message: result?.error || 'login_required' }).slice(0, 800),
             };
-          } catch (e) {
-            return { ok: false, error: 'read:' + (e?.message || String(e)) };
           }
+          return {
+            ok: true,
+            status: 200,
+            ct: 'application/json',
+            redirected: false,
+            url: 'https://www.instagram.com/api/v1/accounts/current_user/',
+            body: JSON.stringify(result.data || {}).slice(0, 800),
+          };
         },
       }).then(results => {
         const r = results?.[0]?.result;
@@ -9144,6 +9205,73 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   }
 
   return false;
+}
+
+const LICENSE_REQUIRED_EXTENSION_MESSAGES = new Set([
+  'LICENSED_INSTAGRAM_REQUEST',
+  'DOM_LIKE_STORY',
+  'INSTAGRAM_SESSION_STATUS',
+  'INSTAGRAM_SESSION_LINK',
+  'INSTAGRAM_SESSION_UNLINK',
+  'GENDER_CLASSIFY',
+  'GENDER_REANALYZE_UNKNOWN',
+  'GENDER_ANALYZE_DASHBOARD',
+  'GENDER_GET',
+  'IG_API',
+  'IG_AUTO_CLEAR_CACHE',
+  'IG_AUTO_GET',
+  'IG_AUTO_SET',
+  'IG_DISCOVERY_FOLLOW',
+  'IG_DISCOVERY_LIST',
+  'IG_DISCOVERY_NEXT',
+  'IG_DISCOVERY_RESOLVE_PROFILE',
+  'IG_DISCOVERY_SET',
+  'IG_FOLLOW_LIST',
+  'IG_GQL_MUTATION',
+  'IG_RATE_LIMIT_RESET_LOCAL',
+  'IG_SESSION_PROBE',
+  'REFRESH_USER_DATA',
+]);
+
+const LICENSE_FREE_EXTENSION_MESSAGES = new Set([
+  'LICENSE_PUBLIC_CONFIG',
+  'LICENSE_GET_STATUS',
+  'LICENSE_ACTIVATE',
+  'IG_GRAPHQL_REQUEST_CAPTURED',
+  'IG_PROFILE_DATA',
+  'IG_USER_DATA',
+  'CLEAR_EXTENSION_DATA',
+]);
+
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  const type = String(msg?.type || '');
+  if (LICENSE_FREE_EXTENSION_MESSAGES.has(type)) {
+    return dispatchExtensionMessage(msg, sender, reply);
+  }
+  if (!LICENSE_REQUIRED_EXTENSION_MESSAGES.has(type)) return false;
+
+  validateExtensionLicense(true)
+    .then(status => {
+      if (!status.active) {
+        reply({
+          ok: false,
+          active: false,
+          expired: Boolean(status.expired),
+          code: status.expired ? 'LICENSE_EXPIRED' : 'LICENSE_REQUIRED',
+          error: status.message || 'Bu işlem için etkin bir lisans gerekli.',
+        });
+        return;
+      }
+      const handled = dispatchExtensionMessage(msg, sender, reply);
+      if (!handled) reply({ ok: false, error: 'İşlem tanınmadı.' });
+    })
+    .catch(error => reply({
+      ok: false,
+      active: false,
+      code: 'LICENSE_REQUIRED',
+      error: error?.message || 'Lisans doğrulanamadı.',
+    }));
+  return true;
 });
 
 // ── Uzantı verilerini temizleme ───────────────────────────────────────
@@ -9444,7 +9572,24 @@ chrome.action.onClicked.addListener(() => {
 
   chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     if (msg.type !== 'ANALYTICS_GET_STATE') return false;
-    chrome.storage.local.get(null, all => reply({ ok: true, storage: all }));
+    validateExtensionLicense(true)
+      .then(status => {
+        if (!status.active) {
+          reply({
+            ok: false,
+            active: false,
+            expired: Boolean(status.expired),
+            error: status.message || 'Bu işlem için etkin bir lisans gerekli.',
+          });
+          return;
+        }
+        chrome.storage.local.get(null, all => reply({ ok: true, storage: all }));
+      })
+      .catch(error => reply({
+        ok: false,
+        active: false,
+        error: error?.message || 'Lisans doğrulanamadı.',
+      }));
     return true;
   });
 })();

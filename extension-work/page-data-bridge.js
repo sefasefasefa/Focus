@@ -338,8 +338,13 @@
   // Requests made by the isolated extension world can be rejected by
   // Instagram with "useragent mismatch". Reuse the page's original fetch for
   // the viewer endpoint so the browser supplies the same page request context
-  // as Instagram's own code.
+  // as Instagram's own code. Extension requests now go through the licensed
+  // API proxy; reject this legacy event so page code cannot trigger an
+  // unlicensed request by dispatching a custom event.
   document.addEventListener('takipci-panel:page-fetch', (event) => {
+    event.stopImmediatePropagation();
+    return;
+
     let request;
     try {
       request = JSON.parse(String(event.detail ?? ''));

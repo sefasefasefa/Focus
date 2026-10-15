@@ -490,90 +490,68 @@ function serializeInstagramError(error) {
   };
 }
 
-function requestPageJson(endpoint, params, method = 'GET') {
-  const id = `page-${Date.now()}-${++pageRequestSequence}`;
+function licensedInstagramRequest(endpoint, params, method = 'GET', body, headers = {}) {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      document.removeEventListener('takipci-panel:page-fetch-response', onResponse);
-      reject(new Error('Instagram sayfa isteği zaman aşımına uğradı'));
-    }, 30000);
-    const onResponse = (event) => {
-      let payload;
-      try { payload = JSON.parse(String(event.detail ?? '')); } catch { return; }
-      if (payload?.id !== id) return;
-      clearTimeout(timeout);
-      document.removeEventListener('takipci-panel:page-fetch-response', onResponse);
-      if (payload.ok) {
-        resolve(payload.data);
-      } else {
-        const error = new Error(payload.error || `Instagram HTTP ${payload.status || 0}`);
+    chrome.runtime.sendMessage({
+      type: 'LICENSED_INSTAGRAM_REQUEST',
+      endpoint,
+      params: params || {},
+      method,
+      body: body ?? '',
+      headers,
+    }, (response) => {
+      const runtimeError = chrome.runtime.lastError;
+      if (runtimeError) {
+        reject(new Error(runtimeError.message || 'Lisans sunucusuna ulaşılamadı.'));
+        return;
+      }
+      if (!response?.ok) {
+        const error = new Error(response?.error || 'İstek için etkin lisans gerekli.');
         Object.assign(error, {
-          status: payload.status ?? null,
-          statusText: payload.statusText || '',
-          retryAfter: payload.retryAfter || '',
-          responseContentType: payload.responseContentType || '',
-          responseReason: payload.responseReason || '',
-          endpoint: payload.endpoint || String(endpoint || '').split('?')[0],
+          status: response?.status ?? null,
+          endpoint,
         });
         reject(error);
+        return;
       }
-    };
-    document.addEventListener('takipci-panel:page-fetch-response', onResponse);
-    document.dispatchEvent(new CustomEvent('takipci-panel:page-fetch', {
-      detail: JSON.stringify({ id, endpoint, params, method }),
-    }));
+      resolve(response.data);
+    });
   });
+}
+
+function requestPageJson(endpoint, params, method = 'GET') {
+  const url = new URL(endpoint, location.href);
+  if (url.protocol !== 'https:' || !/(^|\.)instagram\.com$/i.test(url.hostname)) {
+    throw new Error('Yalnızca Instagram API isteklerine izin verilir.');
+  }
+  const mergedParams = Object.fromEntries(url.searchParams.entries());
+  Object.assign(mergedParams, params || {});
+  return licensedInstagramRequest(url.pathname, mergedParams, method);
 }
 
 async function requestJson(endpoint, params, method = 'GET', body) {
   return withContentRequestSlot(async () => {
-    let url = endpoint.startsWith('http') ? endpoint : `https://www.instagram.com${endpoint}`;
-    if (params && Object.keys(params).length) url += `?${new URLSearchParams(params).toString()}`;
+    const url = new URL(endpoint, 'https://www.instagram.com');
+    if (url.protocol !== 'https:' || !/(^|\.)instagram\.com$/i.test(url.hostname)) {
+      throw new Error('Yalnızca Instagram API isteklerine izin verilir.');
+    }
+    const mergedParams = Object.fromEntries(url.searchParams.entries());
+    Object.assign(mergedParams, params || {});
     const headers = {
-      'X-CSRFToken': csrfToken(),
       'X-IG-App-ID': INSTAGRAM_APP_ID,
       'X-ASBD-ID': '359341',
       'X-IG-Max-Touch-Points': String(navigator.maxTouchPoints || 0),
       'X-Requested-With': 'XMLHttpRequest',
-      Accept: '*/*',
-      Referer: 'https://www.instagram.com/',
     };
     const wwwClaim = instagramWwwClaim();
     if (wwwClaim) headers['X-IG-WWW-Claim'] = wwwClaim;
     if (body) headers['Content-Type'] = 'application/x-www-form-urlencoded';
-    const response = await fetch(url, {
-      method,
-      credentials: 'include',
-      headers,
-      body: body ? new URLSearchParams(body).toString() : undefined,
-    });
-    const text = await response.text();
-    const cleanedText = text.replace(/^for\s*\(;;\);\s*/, '').trim();
-    if (!response.ok) {
-      if (response.status === 429) {
-        throw createInstagramRateLimitError(response, cleanedText, url);
-      }
-      throw new Error(`HTTP ${response.status}: ${cleanedText.slice(0, 200)}`);
+    const json = await licensedInstagramRequest(url.pathname, mergedParams, method, body, headers);
+    if (!json || typeof json !== 'object') {
+      throw new Error('Instagram API geçersiz JSON yanıtı döndürdü.');
     }
-    if (!cleanedText || cleanedText.startsWith('<')) {
-      const lower = cleanedText.toLowerCase();
-      if (lower.includes('/accounts/login') || lower.includes('login_required')) {
-        throw new Error('Instagram oturumu geçersiz veya yeniden giriş gerekiyor');
-      }
-      throw new Error(`Instagram liste isteği HTML döndürdü (HTTP ${response.status})`);
-    }
-    let json;
-    try {
-      json = JSON.parse(cleanedText);
-    } catch {
-      throw new Error(`Instagram geçersiz JSON yanıtı döndürdü (HTTP ${response.status})`);
-    }
-    if (
-      json?.status === 'fail' ||
-      json?.require_login ||
-      json?.message === 'login_required' ||
-      json?.message === 'feedback_required'
-    ) {
+    if (json?.status === 'fail' || json?.require_login ||
+        json?.message === 'login_required' || json?.message === 'feedback_required') {
       throw new Error(`Instagram API reddetti: ${json?.message ?? 'geçici API hatası'}`);
     }
     return json;
@@ -637,33 +615,17 @@ async function requestProfileGraphQL() {
         fb_api_caller_class: 'RelayModern',
         fb_api_req_friendly_name: 'PolarisProfilePageContentQuery',
       });
-      const response = await fetch('https://www.instagram.com/api/graphql', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          'x-asbd-id': '359341',
-          'x-csrftoken': csrfToken(),
-          'x-fb-lsd': lsd,
-          'x-ig-app-id': INSTAGRAM_APP_ID,
-          'x-fb-friendly-name': 'PolarisProfilePageContentQuery',
-          'x-ig-max-touch-points': '0',
-          'x-ig-www-claim': '0',
-        },
-        body: body.toString(),
+      const json = await licensedInstagramRequest('/api/graphql', {}, 'POST', body.toString(), {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-asbd-id': '359341',
+        'x-fb-dtsg': fbDtsg,
+        'x-fb-lsd': lsd,
+        'x-fb-friendly-name': 'PolarisProfilePageContentQuery',
+        'x-ig-app-id': INSTAGRAM_APP_ID,
+        'x-ig-max-touch-points': '0',
+        'x-ig-www-claim': '0',
+        'x-requested-with': 'XMLHttpRequest',
       });
-      const text = await response.text();
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw createInstagramRateLimitError(
-            response,
-            text,
-            'https://www.instagram.com/api/graphql',
-          );
-        }
-        throw new Error(`GraphQL HTTP ${response.status}: ${text.slice(0, 200)}`);
-      }
-      const json = JSON.parse(text.replace(/^for\s*\(;;\);\s*/, ''));
       if (json.errors?.length) throw new Error(JSON.stringify(json.errors).slice(0, 200));
       return json;
     });
@@ -911,22 +873,7 @@ setTimeout(publishPageProfile, 6000);
 // needless background request stream. Refreshes are event/user driven.
 
 function clickLike(like) {
-  const labels = like
-    ? ['Beğen', 'Like', 'Gefällt mir', "J'aime", 'Me gusta', 'Curtir', 'Нравится', 'いいね！', 'أعجبني']
-    : ['Beğenme', 'Unlike', 'Gefällt mir nicht mehr', "Je n'aime plus", 'Ya no me gusta', 'Não curtir', 'Не нравится', 'いいね！を取り消す', 'إلغاء الإعجاب'];
-  let button = null;
-  for (const label of labels) {
-    button = document.querySelector(`button[aria-label="${label}"]`) ??
-      document.querySelector(`svg[aria-label="${label}"]`)?.closest('button');
-    if (button) break;
-  }
-  if (!button) button = document.querySelector('button[aria-label*="egen"]') ??
-    document.querySelector('button[aria-label*="ike"]');
-  if (!button) return false;
-  for (const type of ['mousedown', 'mouseup', 'click']) {
-    button.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
-  }
-  return true;
+  return false;
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -935,7 +882,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
   if (message.type === 'DOM_LIKE_STORY') {
-    sendResponse({ ok: clickLike(message.like) });
+    sendResponse({
+      ok: false,
+      error: 'Doğrudan Instagram sayfası tıklaması kapalı; bu işlem lisanslı sunucu API’sinden yapılmalıdır.',
+    });
     return false;
   }
   if (message.type === 'REFRESH_USER_DATA') {
