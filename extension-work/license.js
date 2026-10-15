@@ -4,7 +4,6 @@
   const runtimeAvailable = Boolean(globalThis.chrome?.runtime?.sendMessage);
   const storageAvailable = Boolean(globalThis.chrome?.storage?.local);
   const elements = {
-    apiUrl: document.getElementById("api-url"),
     orderId: document.getElementById("order-id"),
     email: document.getElementById("purchase-email"),
     activationForm: document.getElementById("activation-form"),
@@ -36,6 +35,7 @@
   let sessionBusy = false;
   let licenseActive = false;
   let sessionLinked = false;
+  let licenseApiBaseUrl = "";
 
   function setStatus(label, detail, state = "loading") {
     elements.statusLabel.textContent = label;
@@ -145,16 +145,27 @@
     try {
       parsed = new URL(raw.trim());
     } catch {
-      throw new Error("Geçerli bir sunucu adresi girin.");
+      throw new Error("Sunucu yapılandırması geçersiz.");
     }
-    if (parsed.protocol !== "https:") throw new Error("Sunucu adresi HTTPS ile başlamalıdır.");
+    const localHttp = parsed.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+    if (parsed.protocol !== "https:" && !localHttp) {
+      throw new Error("Uzak sunucular HTTPS kullanmalı; HTTP yalnızca yerel sunucuda kullanılabilir.");
+    }
     return parsed.toString().replace(/\/$/, "");
+  }
+
+  function getApiBaseUrl() {
+    const configuredUrl = licenseApiBaseUrl ||
+      globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL ||
+      "";
+    return validateApiUrl(configuredUrl);
   }
 
   function permissionCall(method, details) {
     return new Promise((resolve, reject) => {
       if (!globalThis.chrome?.permissions?.[method]) {
-        reject(new Error("Sunucu adresi için uzantı site izni kullanılamıyor."));
+        reject(new Error("Uzantı için API sunucusu erişim izni kullanılamıyor."));
         return;
       }
       chrome.permissions[method](details, (granted) => {
@@ -221,7 +232,7 @@
     setInstagramSessionStatus("Oturum bağlanıyor", "Güncel oturum bilgileri güvenli bağlantıyla sunucuya gönderiliyor.", "loading");
     renderBusy();
     try {
-      const apiBaseUrl = validateApiUrl(elements.apiUrl.value);
+      const apiBaseUrl = getApiBaseUrl();
       await ensureServerPermission(apiBaseUrl, true);
       await saveUrl(apiBaseUrl);
       const result = await sendMessage({ type: "INSTAGRAM_SESSION_LINK" });
@@ -238,7 +249,7 @@
       );
     } catch (error) {
       sessionLinked = false;
-      setInstagramSessionStatus("Oturum bağlanamadı", error?.message || "Instagram oturumunu ve sunucu adresini kontrol et.", "error");
+      setInstagramSessionStatus("Oturum bağlanamadı", error?.message || "Instagram oturumunu ve API bağlantısını kontrol et.", "error");
       setInstagramSessionFeedback(error?.message || "Instagram oturumu bağlanamadı.");
     } finally {
       sessionBusy = false;
@@ -287,7 +298,7 @@
       await refreshInstagramSessionStatus();
     } catch (error) {
       licenseActive = false;
-      setStatus("Lisans sunucusuna ulaşılamıyor", error?.message || "Bağlantı kurulamadı. Sunucu adresini ve bağlantını kontrol edip yeniden dene.", "error");
+      setStatus("Lisans sunucusuna ulaşılamıyor", error?.message || "Bağlantı kurulamadı. Sunucunun çalıştığını ve ağ bağlantını kontrol edip yeniden dene.", "error");
       await refreshInstagramSessionStatus();
     } finally {
       statusBusy = false;
@@ -355,7 +366,7 @@
     clearPlans();
     setPlansState("Paketler yükleniyor", "Güncel paket bilgileri sunucudan alınıyor.");
     try {
-      const apiBaseUrl = validateApiUrl(elements.apiUrl.value);
+      const apiBaseUrl = getApiBaseUrl();
       await ensureServerPermission(apiBaseUrl, requestPermission);
       await saveUrl(apiBaseUrl);
       const result = await sendMessage({ type: "LICENSE_PUBLIC_CONFIG", apiBaseUrl });
@@ -370,7 +381,7 @@
       plans.forEach(addPlan);
       setPlansState("Güncel paketler", "Fiyat ve ödeme bağlantıları lisans sunucusundan alınır.");
     } catch (error) {
-      setPlansState("Paketlere şu an ulaşılamıyor", error?.message || "Sunucu adresini kontrol edip tekrar deneyin.");
+      setPlansState("Paketlere şu an ulaşılamıyor", error?.message || "API sunucusunun çalıştığını kontrol edip tekrar deneyin.");
     } finally {
       configBusy = false;
       renderBusy();
@@ -385,7 +396,7 @@
     const email = elements.email.value.trim();
     let apiBaseUrl;
     try {
-      apiBaseUrl = validateApiUrl(elements.apiUrl.value);
+      apiBaseUrl = getApiBaseUrl();
       if (!orderId) throw new Error("Shopier sipariş numaranı gir.");
       if (!elements.email.checkValidity()) throw new Error("Geçerli bir satın alma e-postası gir.");
       await ensureServerPermission(apiBaseUrl, true);
@@ -443,7 +454,7 @@
 
   elements.refreshStatus.addEventListener("click", async () => {
     try {
-      await ensureServerPermission(validateApiUrl(elements.apiUrl.value), true);
+      await ensureServerPermission(getApiBaseUrl(), true);
     } catch (error) {
       setStatus("Sunucu izni gerekli", error?.message || "Sunucu erişim iznini verip yeniden dene.", "error");
       return;
@@ -468,7 +479,7 @@
     const defaultUrl = typeof globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL === "string"
       ? globalThis.__TAKIPCI_ENV__.LICENSE_API_BASE_URL
       : "";
-    elements.apiUrl.value = savedUrl || defaultUrl;
+    licenseApiBaseUrl = String(defaultUrl || savedUrl).trim();
     await Promise.all([refreshStatus(), refreshPlans()]);
   }
 

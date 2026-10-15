@@ -55,7 +55,7 @@
     try {
       url = new URL(String(raw || "").trim());
     } catch {
-      throw new Error("Geçerli bir API sunucu adresi girin.");
+      throw new Error("API sunucu yapılandırması geçersiz.");
     }
     const localHttp = url.protocol === "http:" &&
       ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
@@ -168,10 +168,6 @@
     return `<span class="account-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg></span>`;
   }
 
-  function serverDetailsMarkup() {
-    return `<details class="account-server-details" id="account-server-details"><summary>API sunucu adresi</summary><label class="account-field" for="account-server-url">Sunucu adresi<input class="account-input" id="account-server-url" type="url" inputmode="url" placeholder="https://api.ornek.com" autocomplete="url"></label></details>`;
-  }
-
   function renderLogin() {
     root.innerHTML = `
       <section aria-labelledby="account-title">
@@ -181,13 +177,9 @@
           <label class="account-field" for="account-password">Parola<input class="account-input" id="account-password" name="password" type="password" autocomplete="current-password" required></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Giriş yapılıyor…" : "Giriş yap"}</button>
         </form>
-        ${serverDetailsMarkup()}
         <div class="account-links"><button class="account-link" type="button" data-action="forgot">Parolamı unuttum</button><button class="account-link" type="button" data-action="register">Hesap oluştur</button></div>
         <p class="account-message" data-account-message role="status"></p>
       </section>`;
-    const details = root.querySelector("#account-server-details");
-    details.open = !api.url;
-    root.querySelector("#account-server-url").value = api.url;
     root.querySelector("#account-email").value = api.lastEmail;
     root.querySelector("#account-login-form").addEventListener("submit", handleLogin);
     root.querySelector('[data-action="forgot"]').addEventListener("click", () => {
@@ -214,11 +206,8 @@
           <label class="account-field" for="account-password">Parola (en az 8 karakter)<input class="account-input" id="account-password" name="password" type="password" minlength="8" maxlength="256" autocomplete="new-password" required></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Hesap oluşturuluyor…" : "Hesap oluştur"}</button>
         </form>
-        ${serverDetailsMarkup()}
         <p class="account-message" data-account-message role="status"></p>
       </section>`;
-    root.querySelector("#account-server-details").open = !api.url;
-    root.querySelector("#account-server-url").value = api.url;
     root.querySelector("#account-email").value = api.lastEmail;
     root.querySelector("#account-register-form").addEventListener("submit", handleRegister);
     root.querySelector('[data-action="back"]').addEventListener("click", () => {
@@ -315,11 +304,8 @@
           <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}</button>
         </form>
-        ${serverDetailsMarkup()}
         <p class="account-message" data-account-message role="status"></p>
       </section>`;
-    root.querySelector("#account-server-details").open = !api.url;
-    root.querySelector("#account-server-url").value = api.url;
     root.querySelector("#account-email").value = api.lastEmail;
     root.querySelector('[data-action="back"]').addEventListener("click", () => {
       clearMessage();
@@ -341,7 +327,11 @@
   }
 
   function getFormServerUrl() {
-    return validateApiUrl(root.querySelector("#account-server-url")?.value || api.url);
+    return validateApiUrl(
+      api.account?.apiBaseUrl ||
+      globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL ||
+      api.url,
+    );
   }
 
   async function handleLogin(event) {
@@ -357,7 +347,7 @@
       apiBaseUrl = getFormServerUrl();
       permissionRequest = requestServerPermission(apiBaseUrl);
     } catch (error) {
-      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
       return;
     }
     api.url = apiBaseUrl;
@@ -408,7 +398,7 @@
     } catch (error) {
       api.busy = false;
       render();
-      setMessage(error.message || "Giriş yapılamadı. Sunucu adresini ve hesap bilgilerini kontrol edin.", "error");
+      setMessage(error.message || "Giriş yapılamadı. API sunucusunun çalıştığını ve hesap bilgilerini kontrol edin.", "error");
     }
   }
 
@@ -427,7 +417,7 @@
       if (password.length < 8) throw new Error("Parola en az 8 karakter olmalı.");
       permissionRequest = requestServerPermission(apiBaseUrl);
     } catch (error) {
-      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
       return;
     }
     api.busy = true;
@@ -485,7 +475,7 @@
       const permissionRequest = requestServerPermission(apiBaseUrl);
       await submitPasswordReset(email, apiBaseUrl, permissionRequest);
     } catch (error) {
-      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
     }
   }
 
@@ -507,7 +497,7 @@
       const apiBaseUrl = validateApiUrl(api.account.apiBaseUrl);
       permissionRequest = requestServerPermission(apiBaseUrl);
     } catch (error) {
-      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
       return;
     }
     api.busy = true;
@@ -573,9 +563,9 @@
     try {
       const stored = await storageGet([API_URL_KEY, DEVICE_ID_KEY, ACCOUNT_KEY, LICENSE_KEY]);
       api.url = String(
+        globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL ||
         stored[API_URL_KEY] ||
         stored[LICENSE_KEY]?.apiBaseUrl ||
-        globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL ||
         "",
       ).trim();
       api.deviceId = String(stored[DEVICE_ID_KEY] || stored[LICENSE_KEY]?.deviceId || "");
