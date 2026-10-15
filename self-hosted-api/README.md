@@ -30,7 +30,7 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 6. `npm start` veya Windows'ta `start.bat` ile başlat.
 7. Caddy/Nginx gibi bir TLS reverse proxy ile HTTPS aç. Caddy örneği `Caddyfile.example` dosyasındadır; Shopier'e verilecek URL `https://api.senin-domainin.tld/api/webhooks/shopier` olmalı.
 8. Shopier geliştirici panelinde `order.created` webhook'u oluştur. İmzayı `Shopier-Signature` başlığından doğrula; bu sunucu doğrulamayı yapar.
-9. Eklentiyi açıp API adresini, Shopier sipariş numarasını ve satın alma e-postasını gir. E-posta cihazda saklanmaz; sunucuda yalnızca HMAC özeti tutulur.
+9. Uzantı popup'ında **Hesap oluştur** bölümüne API adresini, Shopier sipariş numarasını, satın alma e-postasını ve parolanı gir. İlk bağlantıda uzantıya sunucu erişim izni ver. Sonraki girişlerde e-posta ve parolanı kullan; hesap e-postası cihazda HMAC oturum belirteciyle ilişkilendirilir, parolalar sunucuda scrypt ile özetlenir.
 
 `SHOPIER_LICENSE_PRODUCTS` ayarlanana kadar ürün webhook'u lisans oluşturmaz. Sadece yapılandırılmış ürünler ve `paymentStatus=paid` siparişleri kabul edilir. Aynı webhook tekrar gelirse ikinci lisans oluşturulmaz.
 
@@ -57,6 +57,8 @@ Etkinleştirme varsayılan olarak sipariş başına en fazla iki cihaz kabul ede
 node --env-file=.env admin.mjs list
 node --env-file=.env admin.mjs revoke <shopier-order-id>
 ```
+
+Hesap oturumları 90 gün geçerlidir. Parola sıfırlama bağlantısı 1 saat sonra geçersiz olur; parola değişince hesap oturumları ve o hesaba bağlı cihaz lisansları iptal edilir. Bu nedenle her hesap için erişebildiğin bir e-posta ve güçlü bir parola kullan.
 
 ## Güvenlik
 

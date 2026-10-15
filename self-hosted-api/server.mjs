@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { createAccountHandlers } from "./accounts.mjs";
 import { licensePlans } from "./plans.mjs";
 import { recordPaidOrder } from "./orders.mjs";
 import {
@@ -68,6 +69,26 @@ db.exec(`
     PRIMARY KEY (order_id, device_id),
     FOREIGN KEY (order_id, device_id)
       REFERENCES license_devices(order_id, device_id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS account_users (
+    email_hash TEXT PRIMARY KEY,
+    password_salt TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS account_sessions (
+    token_hash TEXT PRIMARY KEY,
+    email_hash TEXT NOT NULL REFERENCES account_users(email_hash) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_hash TEXT PRIMARY KEY,
+    email_hash TEXT NOT NULL REFERENCES account_users(email_hash) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
   );
 `);
 const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
@@ -962,6 +983,24 @@ async function handleRequest(request, response) {
   if (request.method === "POST" && url.pathname === "/api/license/refresh") {
     return await handleLicenseRefresh(request, response);
   }
+  if (request.method === "POST" && url.pathname === "/api/account/register") {
+    return await accountHandlers.register(request, response);
+  }
+  if (request.method === "POST" && url.pathname === "/api/account/login") {
+    return await accountHandlers.login(request, response);
+  }
+  if (request.method === "GET" && url.pathname === "/api/account/subscriptions") {
+    return await accountHandlers.subscriptions(request, response);
+  }
+  if (request.method === "DELETE" && url.pathname === "/api/account/session") {
+    return await accountHandlers.logout(request, response);
+  }
+  if (url.pathname === "/api/account/password/reset/request" && request.method === "POST") {
+    return await accountHandlers.requestPasswordReset(request, response);
+  }
+  if (url.pathname === "/api/account/password/reset" && ["GET", "POST"].includes(request.method)) {
+    return await accountHandlers.resetPassword(request, response, url);
+  }
   if (request.method === "POST" && url.pathname === "/api/ai/gender") {
     return await handleAiGender(request, response);
   }
@@ -976,6 +1015,22 @@ async function handleRequest(request, response) {
   }
   return writeJson(response, 404, { ok: false, error: "Not found." });
 }
+
+const accountHandlers = createAccountHandlers({
+  db,
+  plans: PLANS,
+  tokenTtlMs: TOKEN_TTL_MS,
+  refreshTtlMs: REFRESH_TTL_MS,
+  writeJson,
+  readJson,
+  isRateLimited,
+  requireConfiguredLicenseSecrets,
+  emailDigest,
+  hmacHex,
+  secureTextEqual,
+  makeAccessToken,
+  getBearerToken,
+});
 
 const server = createServer((request, response) => {
   handleRequest(request, response).catch(error => {

@@ -1,0 +1,611 @@
+(() => {
+  "use strict";
+
+  const root = document.getElementById("account-root");
+  if (!root || !globalThis.chrome?.storage?.local) return;
+
+  const API_URL_KEY = "tpLicenseApiBaseUrl";
+  const DEVICE_ID_KEY = "tpLicenseDeviceId";
+  const ACCOUNT_KEY = "tpAccountState";
+  const LICENSE_KEY = "tpLicenseState";
+  const api = {
+    url: "",
+    deviceId: "",
+    account: null,
+    subscriptions: [],
+    view: "login",
+    busy: false,
+    message: "",
+    messageKind: "",
+    lastEmail: "",
+  };
+
+  function storageGet(keys) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.get(keys, result => {
+        const error = chrome.runtime?.lastError;
+        if (error) reject(new Error(error.message || "Uzantı ayarları okunamadı."));
+        else resolve(result || {});
+      });
+    });
+  }
+
+  function storageSet(values) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set(values, () => {
+        const error = chrome.runtime?.lastError;
+        if (error) reject(new Error(error.message || "Uzantı ayarları kaydedilemedi."));
+        else resolve();
+      });
+    });
+  }
+
+  function storageRemove(keys) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.remove(keys, () => {
+        const error = chrome.runtime?.lastError;
+        if (error) reject(new Error(error.message || "Oturum kaldırılamadı."));
+        else resolve();
+      });
+    });
+  }
+
+  function validateApiUrl(raw) {
+    let url;
+    try {
+      url = new URL(String(raw || "").trim());
+    } catch {
+      throw new Error("Geçerli bir API sunucu adresi girin.");
+    }
+    const localHttp = url.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.protocol !== "https:" && !localHttp) {
+      throw new Error("API adresi HTTPS olmalı. HTTP yalnızca localhost için kullanılabilir.");
+    }
+    if (url.username || url.password || url.search || url.hash || !["", "/"].includes(url.pathname)) {
+      throw new Error("Yalnızca API sunucusunun kök adresini girin.");
+    }
+    return url.origin;
+  }
+
+  function requestServerPermission(apiBaseUrl) {
+    const origin = new URL(apiBaseUrl).origin;
+    const permission = { origins: [`${origin}/*`] };
+    return new Promise((resolve, reject) => {
+      if (!chrome.permissions?.request) {
+        reject(new Error("API sunucusuna erişim izni alınamıyor."));
+        return;
+      }
+      try {
+        // Called directly from the submit gesture so the browser can show
+        // the optional-host permission prompt.
+        chrome.permissions.request(permission, granted => {
+          const error = chrome.runtime?.lastError;
+          if (error) reject(new Error(error.message || "API sunucu izni alınamadı."));
+          else if (!granted) reject(new Error("API sunucusuna erişim izni verilmedi."));
+          else resolve();
+        });
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+
+  async function hasServerPermission(apiBaseUrl) {
+    const origin = new URL(apiBaseUrl).origin;
+    if (!chrome.permissions?.contains) return false;
+    return new Promise(resolve => {
+      chrome.permissions.contains({ origins: [`${origin}/*`] }, granted => {
+        resolve(Boolean(granted && !chrome.runtime?.lastError));
+      });
+    });
+  }
+
+  async function requestJson(apiBaseUrl, path, { method = "GET", body, token } = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`${apiBaseUrl}${path}`, {
+        method,
+        cache: "no-store",
+        credentials: "omit",
+        headers: {
+          Accept: "application/json",
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.ok === false) {
+        const error = new Error(String(result?.error || "Sunucu isteği tamamlanamadı."));
+        error.status = response.status;
+        throw error;
+      }
+      return result;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async function ensureDeviceId() {
+    if (/^[a-zA-Z0-9_-]{16,128}$/.test(api.deviceId)) return api.deviceId;
+    const stored = await storageGet([DEVICE_ID_KEY]);
+    const existing = String(stored[DEVICE_ID_KEY] || "");
+    api.deviceId = /^[a-zA-Z0-9_-]{16,128}$/.test(existing)
+      ? existing
+      : crypto.randomUUID().replace(/-/g, "");
+    await storageSet({ [DEVICE_ID_KEY]: api.deviceId });
+    return api.deviceId;
+  }
+
+  function setMessage(message, kind = "") {
+    api.message = message;
+    api.messageKind = kind;
+    const node = root.querySelector("[data-account-message]");
+    if (node) {
+      node.textContent = message;
+      if (kind) node.dataset.kind = kind;
+      else delete node.dataset.kind;
+    }
+  }
+
+  function clearMessage() {
+    api.message = "";
+    api.messageKind = "";
+  }
+
+  function renderMessage() {
+    const node = root.querySelector("[data-account-message]");
+    if (!node) return;
+    node.textContent = api.message;
+    if (api.messageKind) node.dataset.kind = api.messageKind;
+    else delete node.dataset.kind;
+  }
+
+  function iconMarkup() {
+    return `<span class="account-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg></span>`;
+  }
+
+  function serverDetailsMarkup() {
+    return `<details class="account-server-details" id="account-server-details"><summary>API sunucu adresi</summary><label class="account-field" for="account-server-url">Sunucu adresi<input class="account-input" id="account-server-url" type="url" inputmode="url" placeholder="https://api.ornek.com" autocomplete="url"></label></details>`;
+  }
+
+  function renderLogin() {
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Hesabına giriş yap</h2><p class="account-subtitle">Aboneliğini ve hesap ayarlarını görüntüle.</p></div></div>
+        <form class="account-form" id="account-login-form">
+          <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="username" required></label>
+          <label class="account-field" for="account-password">Parola<input class="account-input" id="account-password" name="password" type="password" autocomplete="current-password" required></label>
+          <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Giriş yapılıyor…" : "Giriş yap"}</button>
+        </form>
+        ${serverDetailsMarkup()}
+        <div class="account-links"><button class="account-link" type="button" data-action="forgot">Parolamı unuttum</button><button class="account-link" type="button" data-action="register">Hesap oluştur</button></div>
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    const details = root.querySelector("#account-server-details");
+    details.open = !api.url;
+    root.querySelector("#account-server-url").value = api.url;
+    root.querySelector("#account-email").value = api.lastEmail;
+    root.querySelector("#account-login-form").addEventListener("submit", handleLogin);
+    root.querySelector('[data-action="forgot"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "reset";
+      render();
+    });
+    root.querySelector('[data-action="register"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "register";
+      render();
+    });
+    renderMessage();
+  }
+
+  function renderRegister() {
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <button class="account-back" type="button" data-action="back">← Girişe dön</button>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Hesap oluştur</h2><p class="account-subtitle">Ödenmiş Shopier siparişin gerekir.</p></div></div>
+        <form class="account-form" id="account-register-form">
+          <label class="account-field" for="account-email">Satın alma e-postası<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
+          <label class="account-field" for="account-order">Shopier sipariş numarası<input class="account-input" id="account-order" name="orderId" type="text" autocomplete="off" required></label>
+          <label class="account-field" for="account-password">Parola (en az 8 karakter)<input class="account-input" id="account-password" name="password" type="password" minlength="8" maxlength="256" autocomplete="new-password" required></label>
+          <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Hesap oluşturuluyor…" : "Hesap oluştur"}</button>
+        </form>
+        ${serverDetailsMarkup()}
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    root.querySelector("#account-server-details").open = !api.url;
+    root.querySelector("#account-server-url").value = api.url;
+    root.querySelector("#account-email").value = api.lastEmail;
+    root.querySelector("#account-register-form").addEventListener("submit", handleRegister);
+    root.querySelector('[data-action="back"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "login";
+      render();
+    });
+    renderMessage();
+  }
+
+  function formatDate(value) {
+    if (value === null || value === undefined) return "Süresiz";
+    const date = new Date(Number(value));
+    if (Number.isNaN(date.getTime())) return "Bitiş tarihi belirtilmemiş";
+    return `Bitiş: ${new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(date)}`;
+  }
+
+  function statusLabel(status) {
+    if (status === "active") return "Aktif";
+    if (status === "expired") return "Süresi doldu";
+    if (status === "revoked") return "İptal";
+    return "Beklemede";
+  }
+
+  function renderHome() {
+    const subscriptionsMarkup = api.subscriptions.length
+      ? `<div class="subscription-list">${api.subscriptions.map(item => `
+          <article class="subscription-card">
+            <div><p class="subscription-name"></p><p class="subscription-expiry"></p></div>
+            <span class="subscription-status"></span>
+          </article>`).join("")}</div>`
+      : `<p class="account-subtitle">${api.busy ? "Abonelikler yükleniyor…" : "Bu hesapta kayıtlı abonelik bulunamadı."}</p>`;
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Hesabım</h2><p class="account-subtitle" data-account-email></p></div></div>
+        <div class="account-actions">
+          <button class="account-button" type="button" data-action="settings">Ayarlar</button>
+          <button class="account-button danger" type="button" data-action="logout" ${api.busy ? "disabled" : ""}>${api.busy ? "Çıkış yapılıyor…" : "Çıkış yap"}</button>
+        </div>
+        <div class="account-divider"></div>
+        <h3 class="subscription-title">Abonelikler</h3>
+        <div data-subscription-list>${subscriptionsMarkup}</div>
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    root.querySelector("[data-account-email]").textContent = api.account?.email || "";
+    const cards = root.querySelectorAll(".subscription-card");
+    cards.forEach((card, index) => {
+      const subscription = api.subscriptions[index];
+      card.querySelector(".subscription-name").textContent = subscription.planName || "Lisans paketi";
+      card.querySelector(".subscription-expiry").textContent = formatDate(subscription.expiresAt);
+      const status = card.querySelector(".subscription-status");
+      status.textContent = statusLabel(subscription.status);
+      status.classList.add(subscription.status);
+    });
+    root.querySelector('[data-action="settings"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "settings";
+      render();
+    });
+    root.querySelector('[data-action="logout"]').addEventListener("click", handleLogout);
+    renderMessage();
+  }
+
+  function renderSettings() {
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <button class="account-back" type="button" data-action="back">← Hesabıma dön</button>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Ayarlar</h2><p class="account-subtitle">Parola sıfırlama</p></div></div>
+        <form class="account-form" id="account-reset-form">
+          <p class="account-subtitle">Hesabına parola sıfırlama bağlantısı gönder.</p>
+          <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}</button>
+        </form>
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    root.querySelector('[data-action="back"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "home";
+      render();
+    });
+    root.querySelector("#account-reset-form").addEventListener("submit", handleSettingsReset);
+    const accountEmail = document.createElement("p");
+    accountEmail.className = "account-subtitle";
+    accountEmail.textContent = api.account?.email || "";
+    root.querySelector("#account-reset-form").prepend(accountEmail);
+    renderMessage();
+  }
+
+  function renderReset() {
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <button class="account-back" type="button" data-action="back">← Girişe dön</button>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Parolamı unuttum</h2><p class="account-subtitle">Hesabının e-posta adresini yaz.</p></div></div>
+        <form class="account-form" id="account-reset-form">
+          <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
+          <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}</button>
+        </form>
+        ${serverDetailsMarkup()}
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    root.querySelector("#account-server-details").open = !api.url;
+    root.querySelector("#account-server-url").value = api.url;
+    root.querySelector("#account-email").value = api.lastEmail;
+    root.querySelector('[data-action="back"]').addEventListener("click", () => {
+      clearMessage();
+      api.view = "login";
+      render();
+    });
+    root.querySelector("#account-reset-form").addEventListener("submit", handleForgotReset);
+    renderMessage();
+  }
+
+  function render() {
+    if (api.view === "settings") document.body.dataset.accountView = "settings";
+    else delete document.body.dataset.accountView;
+    if (api.view === "home") renderHome();
+    else if (api.view === "settings") renderSettings();
+    else if (api.view === "register") renderRegister();
+    else if (api.view === "reset") renderReset();
+    else renderLogin();
+  }
+
+  function getFormServerUrl() {
+    return validateApiUrl(root.querySelector("#account-server-url")?.value || api.url);
+  }
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    if (api.busy) return;
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "");
+    api.lastEmail = email;
+    let apiBaseUrl;
+    let permissionRequest;
+    try {
+      apiBaseUrl = getFormServerUrl();
+      permissionRequest = requestServerPermission(apiBaseUrl);
+    } catch (error) {
+      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      return;
+    }
+    api.url = apiBaseUrl;
+    api.busy = true;
+    render();
+    try {
+      await permissionRequest;
+      await storageSet({ [API_URL_KEY]: apiBaseUrl });
+      const deviceId = await ensureDeviceId();
+      const result = await requestJson(apiBaseUrl, "/api/account/login", {
+        method: "POST",
+        body: { email, password, deviceId },
+      });
+      if (!result.sessionToken || !result.account?.email) {
+        throw new Error("Sunucu geçerli bir hesap oturumu döndürmedi.");
+      }
+      api.url = apiBaseUrl;
+      api.account = {
+        email: result.account.email,
+        sessionToken: result.sessionToken,
+        sessionExpiresAt: Number(result.sessionExpiresAt) || 0,
+        apiBaseUrl,
+        deviceId,
+      };
+      api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
+      const values = {
+        [API_URL_KEY]: apiBaseUrl,
+        [DEVICE_ID_KEY]: deviceId,
+        [ACCOUNT_KEY]: api.account,
+      };
+      if (result.license?.accessToken) {
+        values[LICENSE_KEY] = {
+          apiBaseUrl,
+          deviceId,
+          accessToken: result.license.accessToken,
+          refreshToken: String(result.license.refreshToken || ""),
+          tokenExpiresAt: Number(result.license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,
+          validatedAt: Date.now(),
+          expiresAt: result.license.expiresAt == null ? null : Number(result.license.expiresAt),
+        };
+      }
+      await storageSet(values);
+      if (!result.license?.accessToken) await storageRemove([LICENSE_KEY]);
+      api.busy = false;
+      api.view = "home";
+      clearMessage();
+      render();
+    } catch (error) {
+      api.busy = false;
+      render();
+      setMessage(error.message || "Giriş yapılamadı. Sunucu adresini ve hesap bilgilerini kontrol edin.", "error");
+    }
+  }
+
+  async function handleRegister(event) {
+    event.preventDefault();
+    if (api.busy) return;
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "").trim();
+    const orderId = String(form.get("orderId") || "").trim();
+    const password = String(form.get("password") || "");
+    api.lastEmail = email;
+    let apiBaseUrl;
+    let permissionRequest;
+    try {
+      apiBaseUrl = getFormServerUrl();
+      if (password.length < 8) throw new Error("Parola en az 8 karakter olmalı.");
+      permissionRequest = requestServerPermission(apiBaseUrl);
+    } catch (error) {
+      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      return;
+    }
+    api.busy = true;
+    render();
+    try {
+      await permissionRequest;
+      api.url = apiBaseUrl;
+      await storageSet({ [API_URL_KEY]: apiBaseUrl });
+      await requestJson(apiBaseUrl, "/api/account/register", {
+        method: "POST",
+        body: { email, orderId, password },
+      });
+      api.busy = false;
+      api.view = "login";
+      clearMessage();
+      render();
+      root.querySelector("#account-email").value = email;
+      setMessage("Hesap oluşturuldu. Şimdi parolanla giriş yapabilirsin.", "success");
+    } catch (error) {
+      api.busy = false;
+      render();
+      setMessage(error.message || "Hesap oluşturulamadı.", "error");
+    }
+  }
+
+  async function submitPasswordReset(email, apiBaseUrl, permissionRequest) {
+    if (api.busy) return;
+    api.busy = true;
+    render();
+    try {
+      await permissionRequest;
+      api.url = apiBaseUrl;
+      await storageSet({ [API_URL_KEY]: apiBaseUrl });
+      await requestJson(apiBaseUrl, "/api/account/password/reset/request", {
+        method: "POST",
+        body: { email },
+      });
+      api.busy = false;
+      render();
+      setMessage("İstek alındı. Kayıtlı hesapsa sıfırlama bağlantısı e-postayla gönderildi.", "success");
+    } catch (error) {
+      api.busy = false;
+      render();
+      setMessage(error.message || "Sıfırlama isteği gönderilemedi.", "error");
+    }
+  }
+
+  async function handleForgotReset(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "").trim();
+    api.lastEmail = email;
+    try {
+      const apiBaseUrl = getFormServerUrl();
+      const permissionRequest = requestServerPermission(apiBaseUrl);
+      await submitPasswordReset(email, apiBaseUrl, permissionRequest);
+    } catch (error) {
+      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+    }
+  }
+
+  async function handleSettingsReset(event) {
+    event.preventDefault();
+    try {
+      const apiBaseUrl = validateApiUrl(api.account?.apiBaseUrl || api.url);
+      const permissionRequest = requestServerPermission(apiBaseUrl);
+      await submitPasswordReset(api.account.email, apiBaseUrl, permissionRequest);
+    } catch (error) {
+      setMessage(error.message || "Sıfırlama isteği gönderilemedi.", "error");
+    }
+  }
+
+  async function handleLogout() {
+    if (api.busy || !api.account) return;
+    let permissionRequest;
+    try {
+      const apiBaseUrl = validateApiUrl(api.account.apiBaseUrl);
+      permissionRequest = requestServerPermission(apiBaseUrl);
+    } catch (error) {
+      setMessage(error.message || "Sunucu adresini kontrol edin.", "error");
+      return;
+    }
+    api.busy = true;
+    render();
+    try {
+      await permissionRequest;
+      await requestJson(api.account.apiBaseUrl, "/api/account/session", {
+        method: "DELETE",
+        token: api.account.sessionToken,
+      });
+      await storageRemove([ACCOUNT_KEY, LICENSE_KEY]);
+      api.account = null;
+      api.subscriptions = [];
+      api.view = "login";
+      api.busy = false;
+      clearMessage();
+      render();
+    } catch (error) {
+      if (error.status === 401) {
+        await storageRemove([ACCOUNT_KEY, LICENSE_KEY]);
+        api.account = null;
+        api.subscriptions = [];
+        api.view = "login";
+        api.busy = false;
+        render();
+        setMessage("Hesap oturumunun süresi dolmuş. Yeniden giriş yapın.", "error");
+        return;
+      }
+      api.busy = false;
+      render();
+      setMessage(error.message || "Çıkış yapılamadı. Bağlantıyı kontrol edip tekrar deneyin.", "error");
+    }
+  }
+
+  async function refreshSubscriptions() {
+    if (!api.account) return;
+    try {
+      if (!(await hasServerPermission(api.account.apiBaseUrl))) {
+        throw new Error("Abonelikleri görmek için API sunucu izni gerekli.");
+      }
+      const result = await requestJson(api.account.apiBaseUrl, "/api/account/subscriptions", {
+        token: api.account.sessionToken,
+      });
+      api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
+      await storageSet({ [ACCOUNT_KEY]: api.account });
+      render();
+    } catch (error) {
+      if (error.status === 401) {
+        await storageRemove([ACCOUNT_KEY, LICENSE_KEY]);
+        api.account = null;
+        api.subscriptions = [];
+        api.view = "login";
+        api.busy = false;
+        render();
+        setMessage("Hesap oturumunun süresi dolmuş. Yeniden giriş yapın.", "error");
+        return;
+      }
+      setMessage(error.message || "Abonelikler yüklenemedi.", "error");
+    }
+  }
+
+  async function initialize() {
+    try {
+      const stored = await storageGet([API_URL_KEY, DEVICE_ID_KEY, ACCOUNT_KEY, LICENSE_KEY]);
+      api.url = String(
+        stored[API_URL_KEY] ||
+        stored[LICENSE_KEY]?.apiBaseUrl ||
+        globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL ||
+        "",
+      ).trim();
+      api.deviceId = String(stored[DEVICE_ID_KEY] || stored[LICENSE_KEY]?.deviceId || "");
+      api.account = stored[ACCOUNT_KEY] && typeof stored[ACCOUNT_KEY] === "object"
+        ? stored[ACCOUNT_KEY]
+        : null;
+      if (
+        api.account?.sessionToken &&
+        api.account?.email &&
+        api.account?.apiBaseUrl &&
+        Number(api.account.sessionExpiresAt) > Date.now()
+      ) {
+        api.url = api.account.apiBaseUrl;
+        api.view = "home";
+        render();
+        api.busy = true;
+        render();
+        await refreshSubscriptions();
+        api.busy = false;
+        render();
+        return;
+      }
+      if (api.account) await storageRemove([ACCOUNT_KEY]);
+      api.account = null;
+      render();
+    } catch (error) {
+      render();
+      setMessage(error.message || "Hesap bilgileri yüklenemedi.", "error");
+    }
+  }
+
+  initialize();
+})();

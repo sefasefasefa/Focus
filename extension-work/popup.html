@@ -9,13 +9,73 @@
     <style>
       /* Popup boyut garantisi — React yüklenemese bile popup görünür olur */
       html, body {
-        min-width: 280px;
+        width: 320px;
+        min-width: 320px;
         min-height: 60px;
         background: #09090b;
         color: #fafafa;
         margin: 0;
         padding: 0;
       }
+      #root > div { width: 100% !important; }
+      #account-root {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,.07);
+        color: #fafafa;
+        font: 12px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      #account-root * { box-sizing: border-box; }
+      #account-root .account-heading { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+      #account-root .account-icon {
+        width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;
+        color:white;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);
+        box-shadow:0 0 18px rgba(168,85,247,.18);
+      }
+      #account-root .account-icon svg { width:17px;height:17px; }
+      #account-root .account-title { margin:0;color:#f9fafb;font-size:13px;font-weight:700; }
+      #account-root .account-subtitle { margin:2px 0 0;color:#9ca3af;font-size:10px;overflow-wrap:anywhere; }
+      #account-root .account-form { display:grid;gap:8px; }
+      #account-root .account-field { display:grid;gap:4px;color:#a1a1aa;font-size:10px; }
+      #account-root .account-input {
+        width:100%;height:34px;padding:0 10px;border-radius:8px;
+        border:1px solid rgba(255,255,255,.11);outline:none;background:#111116;color:#f4f4f5;
+        font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      }
+      #account-root .account-input:focus { border-color:rgba(192,132,252,.7);box-shadow:0 0 0 2px rgba(168,85,247,.12); }
+      #account-root .account-button {
+        min-height:34px;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+        background:rgba(255,255,255,.06);color:#e5e7eb;font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+        cursor:pointer;transition:background .15s,border-color .15s;
+      }
+      #account-root .account-button:hover:not(:disabled) { background:rgba(255,255,255,.11); }
+      #account-root .account-button:disabled { opacity:.55;cursor:wait; }
+      #account-root .account-button.primary { border-color:transparent;background:linear-gradient(100deg,#833ab4,#d94672);color:white; }
+      #account-root .account-button.danger { color:#fca5a5;border-color:rgba(239,68,68,.25);background:rgba(127,29,29,.14); }
+      #account-root .account-actions { display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:9px 0 12px; }
+      #account-root .account-links { display:flex;justify-content:space-between;gap:8px;margin-top:2px; }
+      #account-root .account-link { padding:2px 0;border:0;background:none;color:#c4b5fd;font:inherit;font-size:10px;cursor:pointer;text-decoration:none; }
+      #account-root .account-link:hover { color:#e9d5ff;text-decoration:underline; }
+      #account-root .account-divider { height:1px;background:rgba(255,255,255,.07);margin:11px 0; }
+      #account-root .subscription-title { margin:0 0 7px;color:#d4d4d8;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase; }
+      #account-root .subscription-list { display:grid;gap:6px; }
+      #account-root .subscription-card { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(255,255,255,.025); }
+      #account-root .subscription-name { margin:0;color:#f4f4f5;font-size:11px;font-weight:650; }
+      #account-root .subscription-expiry { margin:2px 0 0;color:#9ca3af;font-size:9px; }
+      #account-root .subscription-status { flex:none;padding:3px 6px;border-radius:99px;background:rgba(244,244,245,.08);color:#d4d4d8;font-size:9px; }
+      #account-root .subscription-status.active { background:rgba(16,185,129,.12);color:#6ee7b7; }
+      #account-root .subscription-status.expired,#account-root .subscription-status.revoked { background:rgba(244,63,94,.1);color:#fda4af; }
+      #account-root .account-message { margin:8px 0 0;color:#a1a1aa;font-size:10px; }
+      #account-root .account-message[data-kind="error"] { color:#fda4af; }
+      #account-root .account-message[data-kind="success"] { color:#6ee7b7; }
+      #account-root .account-message:empty { display:none; }
+      #account-root .account-server-details { margin-top:7px; }
+      #account-root .account-server-details summary { color:#9ca3af;font-size:10px;cursor:pointer; }
+      #account-root .account-server-details .account-field { margin-top:7px; }
+      #account-root .account-back { margin:0 0 8px;padding:0;border:0;background:none;color:#c4b5fd;font-size:10px;cursor:pointer; }
+      body[data-account-view="settings"] > #root,
+      body[data-account-view="settings"] > .dov-s-section-title,
+      body[data-account-view="settings"] > #dov-s-slot,
+      body[data-account-view="settings"] > .brand-foot { display:none; }
       /* Settings card slot — popup için minimal konteynır */
       #dov-s-slot { padding: 4px 6px 0; }
 
@@ -40,6 +100,7 @@
     </style>
   </head>
   <body>
+    <div id="account-root" aria-live="polite"></div>
     <div id="root"></div>
 
     <!-- ╔══════ AYLAR — Otomasyon için içerik türü seçimi ══════╗ -->
@@ -52,6 +113,7 @@
     <script src="./env.js"></script>
     <script src="./popup-init.js"></script>
     <script src="./popup-logout.js"></script>
+    <script src="./account-popup.js" defer></script>
     <script src="./settings-card.js" defer></script>
   </body>
 </html>
