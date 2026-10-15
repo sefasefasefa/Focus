@@ -250,11 +250,17 @@ function authenticateLicense(request) {
     SELECT order_id, payment_status, expires_at, revoked_at
     FROM shopier_orders WHERE order_id = ?
   `).get(token.orderId);
-  if (!order || order.payment_status !== "paid" || order.revoked_at) {
+  if (!order || !["paid", "trial"].includes(order.payment_status) || order.revoked_at) {
     throw Object.assign(new Error("Lisans etkin değil."), { status: 403 });
   }
   if (order.expires_at !== null && Number(order.expires_at) <= Date.now()) {
-    throw Object.assign(new Error("Lisans süresi dolmuş."), { status: 403 });
+    const trialExpired = order.payment_status === "trial";
+    throw Object.assign(
+      new Error(trialExpired
+        ? "7 günlük ücretsiz denemen sona erdi. Devam etmek için aylık lisans satın al."
+        : "Lisans süresi dolmuş."),
+      { status: 403, code: trialExpired ? "TRIAL_EXPIRED" : "LICENSE_EXPIRED", licenseType: order.payment_status },
+    );
   }
   const device = db.prepare(`
     SELECT device_id FROM license_devices WHERE order_id = ? AND device_id = ?
@@ -642,6 +648,9 @@ async function handleShopierWebhook(request, response) {
   const product = selectedProduct(order);
   const email = normalizedEmail(order?.billingInfo?.email || order?.shippingInfo?.email);
   if (!product) return writeJson(response, 200, { ok: true, ignored: true, reason: "unconfigured-product" });
+  if (product.days !== 30) {
+    return writeJson(response, 200, { ok: true, ignored: true, reason: "monthly-plan-required" });
+  }
   if (!orderId || !email.includes("@")) {
     // Do not persist the incoming order body; it can contain address and identity data.
     console.warn("[license-api] Shopier paid order could not be matched to a configured product.");
@@ -682,7 +691,12 @@ async function handleLicenseRefresh(request, response) {
   const { order } = authenticateLicense({ headers: { authorization: `Bearer ${token}` } });
   db.prepare("UPDATE license_devices SET refresh_until = ? WHERE order_id = ? AND device_id = ?")
     .run(Date.now() + REFRESH_TTL_MS, device.order_id, device.device_id);
-  return writeJson(response, 200, { ok: true, accessToken: token, expiresAt: order.expires_at });
+  return writeJson(response, 200, {
+    ok: true,
+    accessToken: token,
+    expiresAt: order.expires_at,
+    licenseType: order.payment_status,
+  });
 }
 
 async function handleLicenseValidation(request, response) {
@@ -692,6 +706,7 @@ async function handleLicenseValidation(request, response) {
     ok: true,
     accessToken: makeAccessToken(token.orderId, token.deviceId),
     expiresAt: order.expires_at === null ? null : Number(order.expires_at),
+    licenseType: order.payment_status,
   });
 }
 
@@ -924,7 +939,9 @@ async function handleRequest(request, response) {
   if (request.method === "GET" && url.pathname === "/api/public-config") {
     return writeJson(response, 200, {
       shopierCheckoutUrl: String(process.env.SHOPIER_CHECKOUT_URL || "").trim(),
-      plans: PLANS,
+      trialDays: 7,
+      monthlyPlanRequired: true,
+      plans: PLANS.filter(plan => Number(plan.days) === 30),
     });
   }
   if (request.method === "POST" && url.pathname === "/api/webhooks/shopier") {
@@ -981,6 +998,7 @@ async function handleRequest(request, response) {
 const accountHandlers = createAccountHandlers({
   db,
   plans: PLANS,
+  trialDeviceLimit: DEFAULT_MAX_DEVICES,
   tokenTtlMs: TOKEN_TTL_MS,
   refreshTtlMs: REFRESH_TTL_MS,
   writeJson,
@@ -1002,6 +1020,8 @@ const server = createServer((request, response) => {
     writeJson(response, status, {
       ok: false,
       error: status === 500 ? "Sunucu hatası." : String(error?.message || "İstek başarısız."),
+      ...(error?.code ? { code: String(error.code) } : {}),
+      ...(error?.licenseType ? { licenseType: String(error.licenseType) } : {}),
     });
   });
 });

@@ -6,10 +6,13 @@ const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 const PURCHASE_CODE_TTL_MS = 10 * 60 * 1000;
 const PURCHASE_CODE_RESEND_WAIT_MS = 60 * 1000;
 const PURCHASE_CODE_MAX_ATTEMPTS = 5;
+const FREE_TRIAL_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function createAccountHandlers({
   db,
   plans,
+  trialDeviceLimit = 2,
   tokenTtlMs,
   refreshTtlMs,
   writeJson,
@@ -42,10 +45,19 @@ export function createAccountHandlers({
     return db.prepare(`
       SELECT order_id, product_id, payment_status, email_hash, expires_at, revoked_at, device_limit
       FROM shopier_orders
+      WHERE email_hash = ? AND payment_status IN ('paid', 'trial') AND revoked_at IS NULL
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY CASE WHEN payment_status = 'paid' THEN 0 ELSE 1 END, paid_at DESC LIMIT 1
+    `).get(emailHash, Date.now());
+  }
+
+  function findActivePaidOrder(emailHash, now = Date.now()) {
+    return db.prepare(`
+      SELECT order_id FROM shopier_orders
       WHERE email_hash = ? AND payment_status = 'paid' AND revoked_at IS NULL
         AND (expires_at IS NULL OR expires_at > ?)
       ORDER BY paid_at DESC LIMIT 1
-    `).get(emailHash, Date.now());
+    `).get(emailHash, now);
   }
 
   function smtpSettings() {
@@ -83,11 +95,13 @@ export function createAccountHandlers({
     return hmacHex(process.env.LICENSE_DATA_SECRET, `purchase-email:${purpose}:${emailHash}:${code}`);
   }
 
-  function genericVerificationResponse(response) {
+  function genericVerificationResponse(response, purpose) {
     return writeJson(response, 200, {
       ok: true,
       verificationRequired: true,
-      message: "Bu e-posta için etkin bir Shopier satın alımı varsa doğrulama kodu gönderildi.",
+      message: purpose === "registration"
+        ? "Kod gönderme işlemi başlatıldı. Gelen kutunu ve spam klasörünü kontrol et."
+        : "Bu e-posta için etkin bir lisans varsa doğrulama kodu gönderildi.",
     });
   }
 
@@ -117,8 +131,8 @@ export function createAccountHandlers({
     const existingAccount = purpose === "registration"
       ? db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)
       : null;
-    const order = findActiveOrder(emailHash);
-    if (existingAccount || !order) return genericVerificationResponse(response);
+    const hasActivationLicense = purpose !== "license-activation" || Boolean(findActiveOrder(emailHash));
+    if (existingAccount || !hasActivationLicense) return genericVerificationResponse(response, purpose);
 
     const now = Date.now();
     const existingCode = db.prepare(`
@@ -126,7 +140,7 @@ export function createAccountHandlers({
       WHERE email_hash = ? AND purpose = ?
     `).get(emailHash, purpose);
     if (existingCode && now - Number(existingCode.created_at) < PURCHASE_CODE_RESEND_WAIT_MS) {
-      return genericVerificationResponse(response);
+      return genericVerificationResponse(response, purpose);
     }
 
     const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
@@ -166,7 +180,7 @@ export function createAccountHandlers({
       console.warn("[license-api] Purchase verification email could not be sent.");
       return writeJson(response, 503, { ok: false, error: "Doğrulama e-postası gönderilemedi. Sunucunun posta ayarlarını kontrol edin." });
     }
-    return genericVerificationResponse(response);
+    return genericVerificationResponse(response, purpose);
   }
 
   function checkedPurchaseVerification(emailHash, purpose, code) {
@@ -200,14 +214,15 @@ export function createAccountHandlers({
     return db.prepare(`
       SELECT product_id, payment_status, paid_at, expires_at, revoked_at
       FROM shopier_orders
-      WHERE email_hash = ? AND payment_status = 'paid'
+      WHERE email_hash = ? AND payment_status IN ('paid', 'trial')
       ORDER BY paid_at DESC
     `).all(emailHash).map(order => {
+      const isTrial = order.payment_status === "trial";
       const plan = plans.find(item => item.productId === order.product_id);
       const expired = order.expires_at !== null && Number(order.expires_at) <= Date.now();
       return {
-        planName: plan?.name || "Lisans paketi",
-        status: order.revoked_at ? "revoked" : expired ? "expired" : "active",
+        planName: isTrial ? `${FREE_TRIAL_DAYS} günlük ücretsiz deneme` : plan?.name || "Lisans paketi",
+        status: order.revoked_at ? "revoked" : expired ? "expired" : isTrial ? "trial" : "active",
         purchasedAt: Number(order.paid_at),
         expiresAt: order.expires_at === null ? null : Number(order.expires_at),
       };
@@ -251,6 +266,7 @@ export function createAccountHandlers({
       refreshToken,
       tokenExpiresAt: Date.now() + tokenTtlMs,
       expiresAt: order.expires_at === null ? null : Number(order.expires_at),
+      licenseType: order.payment_status,
     };
   }
 
@@ -295,12 +311,6 @@ export function createAccountHandlers({
         db.exec("COMMIT");
         return writeJson(response, 401, { ok: false, error: "Kod yanlış, süresi dolmuş veya kullanılmış. Yeni kod isteyip tekrar deneyin." });
       }
-      if (!findActiveOrder(emailHash)) {
-        db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
-          .run(emailHash);
-        db.exec("COMMIT");
-        return writeJson(response, 401, { ok: false, error: "Bu e-posta için etkin bir satın alma bulunamadı." });
-      }
       if (db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)) {
         db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
           .run(emailHash);
@@ -309,6 +319,19 @@ export function createAccountHandlers({
       }
 
       const now = Date.now();
+      if (!findActivePaidOrder(emailHash, now)) {
+        db.prepare(`
+          INSERT OR IGNORE INTO shopier_orders
+            (order_id, product_id, payment_status, email_hash, paid_at, expires_at, revoked_at, device_limit)
+          VALUES (?, 'free-trial', 'trial', ?, ?, ?, NULL, ?)
+        `).run(
+          `trial:${emailHash}`,
+          emailHash,
+          now,
+          now + FREE_TRIAL_DAYS * DAY_MS,
+          trialDeviceLimit,
+        );
+      }
       db.prepare(`
         INSERT INTO account_users (email_hash, password_salt, password_hash, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
@@ -412,6 +435,7 @@ export function createAccountHandlers({
       sessionExpiresAt,
       license,
       subscriptions: listSubscriptions(emailHash),
+      monthlyPlans: plans.filter(plan => Number(plan.days) === 30),
     });
   }
 

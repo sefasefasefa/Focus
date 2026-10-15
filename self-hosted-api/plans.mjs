@@ -20,7 +20,9 @@ export function licensePlans(env = process.env) {
     return {
       productId,
       days,
-      name: String(detail.name || (days === 0 ? "Ömür boyu lisans" : `${days} günlük lisans`)).slice(0, 100),
+      name: String(detail.name || (
+        days === 0 ? "Ömür boyu lisans" : days === 30 ? "Aylık lisans" : `${days} günlük lisans`
+      )).slice(0, 100),
       priceLabel: String(detail.priceLabel || "").slice(0, 80),
       checkoutUrl,
     };
