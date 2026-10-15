@@ -28,3 +28,31 @@ mtime_ms = 1791976899639
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:71e3bd8b-2dcd-4edb-96fd-2b89dfbd9f23/2feec80d-696b-40ed-b0dd-ceae07cb601e/e5df6447-ab33-43cb-8b9f-4db83cdc64e4"
 storage_version_token = "1791976909424834"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "1RbMpbhs4ssrAC4qJlqtq"
+uri = "file://generated-artifacts/takipci-paneli-extension-v1.0.150.zip"
+type = "unspecified"
+title = "Takipçi Paneli — Eklenti ZIP 1.0.150"
+description = "Sadece tarayıcı eklentisi. Manifest dosyası ZIP kök dizinindedir; Chrome veya Edge eklenti sayfasından ZIP’i seçerek deneme yapabilirsiniz."
+logical_id = "1b65468e-be0e-4a1f-b6ca-bb171bbdebfb"
+content_hash = "sha256:7a76031e8be88afe621758c456ba5e2a76d4f71b3ecf4b983ed21b295e2269a2"
+size = 415486
+mtime_ms = 1792068317223
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:7ad3ee63-7bd5-406d-8181-cd7136def4a3/1b65468e-be0e-4a1f-b6ca-bb171bbdebfb/f6a2593a-784d-4d2b-a9e7-e9ce401287f3"
+storage_version_token = "1792068335620809"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Q3DhHpNk6StmvdOs5rZFa"
+uri = "file://generated-artifacts/takipci-paneli-self-hosted-api.zip"
+type = "unspecified"
+title = "Takipçi Paneli — Lisans API Sunucusu ZIP"
+description = "Ayrı sunucu paketi. Gerçek anahtarlar ve veritabanı eklenmedi; ilk kurulum için paketteki README ve .env.example dosyalarını kullanın."
+logical_id = "3604df56-47cc-48ec-89e6-5a32f5bdbbf4"
+content_hash = "sha256:45265b375ada309b205eb1fd74598ad8a96eec0025c1cce0c0e3a847f96dc230"
+size = 18946
+mtime_ms = 1792068317259
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:7ad3ee63-7bd5-406d-8181-cd7136def4a3/3604df56-47cc-48ec-89e6-5a32f5bdbbf4/83436fa8-3e08-4cb6-9b11-b41e28aaa644"
+storage_version_token = "1792068336854285"
+content_type = "application/octet-stream"
