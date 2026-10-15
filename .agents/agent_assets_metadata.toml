@@ -33,14 +33,14 @@ content_type = "application/octet-stream"
 id = "1RbMpbhs4ssrAC4qJlqtq"
 uri = "file://generated-artifacts/takipci-paneli-extension-v1.0.150.zip"
 type = "unspecified"
-title = "Takipçi Paneli — Eklenti ZIP 1.0.150"
-description = "Sadece tarayıcı eklentisi. Manifest dosyası ZIP kök dizinindedir; Chrome veya Edge eklenti sayfasından ZIP’i seçerek deneme yapabilirsiniz."
+title = "Güncel eklenti ZIP’i — lisans girişi yenile düğmesinin altında"
+description = "Lisans etkinleştirme bölümü “Yenile” durum kartının hemen altına taşındı. ZIP’i çıkarıp uzantı olarak yükleyin."
 logical_id = "1b65468e-be0e-4a1f-b6ca-bb171bbdebfb"
-content_hash = "sha256:7a76031e8be88afe621758c456ba5e2a76d4f71b3ecf4b983ed21b295e2269a2"
-size = 415486
-mtime_ms = 1792068317223
-storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:7ad3ee63-7bd5-406d-8181-cd7136def4a3/1b65468e-be0e-4a1f-b6ca-bb171bbdebfb/f6a2593a-784d-4d2b-a9e7-e9ce401287f3"
-storage_version_token = "1792068335620809"
+content_hash = "sha256:d09c91000940036d9dd98be2c93c8b590ec36f0c1622682404886683955ac6b5"
+size = 415502
+mtime_ms = 1792068910448
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:7ad3ee63-7bd5-406d-8181-cd7136def4a3/1b65468e-be0e-4a1f-b6ca-bb171bbdebfb/b921d86f-876d-45b9-8b52-59d08b78938d"
+storage_version_token = "1792068932743493"
 content_type = "application/octet-stream"
 
 [[outputs]]
