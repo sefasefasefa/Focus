@@ -63,9 +63,7 @@ export function normalizeGender(value) {
 }
 
 export function getGenderProviderStatus(apiBaseUrl = '') {
-  const configuredUrl = String(
-    apiBaseUrl || globalThis.__TAKIPCI_ENV__?.API_BASE_URL || '',
-  ).trim();
+  const configuredUrl = String(apiBaseUrl || '').trim();
   let available = false;
   try {
     const url = new URL(configuredUrl);
@@ -74,7 +72,6 @@ export function getGenderProviderStatus(apiBaseUrl = '') {
   } catch {}
   return {
     available,
-    genderizeAvailable: false,
     provider: available ? 'server-ai' : 'none',
   };
 }
@@ -100,141 +97,6 @@ function profilePhotoUrl(user) {
 
 function hasProfilePhoto(user) {
   return Boolean(profilePhotoUrl(user));
-}
-
-function wait(milliseconds) {
-  return new Promise(resolve => setTimeout(resolve, Math.max(0, milliseconds)));
-}
-
-let lastProviderRequestAt = 0;
-let lastGenderizeRequestAt = 0;
-let providerRequestQueue = Promise.resolve();
-let providerCooldownUntil = 0;
-
-async function waitForProviderSlot(provider = 'ai') {
-  const previous = providerRequestQueue;
-  let release;
-  providerRequestQueue = new Promise(resolve => { release = resolve; });
-  await previous.catch(() => {});
-
-  try {
-    const env = globalThis.__TAKIPCI_ENV__;
-    const providerInterval = provider === 'gemini'
-      ? env?.GEMINI_MIN_REQUEST_INTERVAL_MS
-      : env?.MISTRAL_MIN_REQUEST_INTERVAL_MS;
-    const configuredInterval = Number(
-      providerInterval ?? env?.AI_MIN_REQUEST_INTERVAL_MS,
-    );
-    const fallbackInterval = provider === 'gemini' ? 5000 : 1100;
-    const requestedInterval = Number.isFinite(configuredInterval) && configuredInterval > 0
-      ? configuredInterval
-      : fallbackInterval;
-    const minInterval = provider === 'gemini'
-      ? Math.max(5000, requestedInterval)
-      : requestedInterval;
-    const nextAllowedAt = Math.max(
-      lastProviderRequestAt ? lastProviderRequestAt + minInterval : 0,
-      provider === 'gemini' ? providerCooldownUntil : 0,
-    );
-    const delayMs = nextAllowedAt - Date.now();
-    if (delayMs > 0) await wait(delayMs);
-    lastProviderRequestAt = Date.now();
-  } finally {
-    release();
-  }
-}
-
-function retryDelayValueMs(value) {
-  const text = String(value || '').trim();
-  if (!text) return null;
-  const match = text.match(/^(\d+(?:\.\d+)?)(ms|s|m)$/iu);
-  if (match) {
-    const amount = Number(match[1]);
-    const unit = match[2].toLowerCase();
-    return amount * (unit === 'm' ? 60000 : unit === 's' ? 1000 : 1);
-  }
-  const seconds = Number(text);
-  return Number.isFinite(seconds) ? seconds * 1000 : null;
-}
-
-function geminiRetryDelayMs(response, payload) {
-  const retryAfter = String(response?.headers?.get?.('retry-after') || '').trim();
-  const retryInfo = payload?.error?.details?.find(detail =>
-    String(detail?.['@type'] || '').includes('RetryInfo'),
-  );
-  let requestedDelay = retryAfter
-    ? retryDelayValueMs(retryAfter) ?? (Date.parse(retryAfter) - Date.now())
-    : retryDelayValueMs(retryInfo?.retryDelay);
-  const quotaIds = (payload?.error?.details || [])
-    .flatMap(detail => Array.isArray(detail?.violations) ? detail.violations : [])
-    .map(violation => String(violation?.quotaId || ''));
-  if (
-    response?.status === 429
-    && quotaIds.some(quotaId => /PerMinute/i.test(quotaId))
-  ) {
-    requestedDelay = Math.max(60000, Number(requestedDelay) || 0);
-  }
-  if (!Number.isFinite(requestedDelay) || requestedDelay < 0) {
-    requestedDelay = response?.status === 429
-      ? 15000
-      : response?.status === 503
-        ? 30000
-        : 5000;
-  }
-  return Math.max(1000, Math.min(120000, requestedDelay));
-}
-
-async function fetchGeminiWithProviderRetry(
-  endpoint,
-  requestOptions,
-  model,
-  user,
-  onProviderError,
-) {
-  let response;
-  let payload;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    await waitForProviderSlot('gemini');
-    response = await fetch(endpoint, requestOptions);
-    payload = await readProviderPayload(response);
-    if ((response.status === 503 || response.status === 429) && attempt === 0) {
-      const delayMs = geminiRetryDelayMs(response, payload);
-      providerCooldownUntil = Math.max(
-        providerCooldownUntil,
-        Date.now() + delayMs,
-      );
-      try {
-        console.warn(
-          `[Takipçi Paneli] Gemini ${response.status}; tek yeniden deneme yapılacak`,
-          { model, delayMs },
-        );
-      } catch {
-        // Retry behavior must not depend on console availability.
-      }
-      continue;
-    }
-    if (response.status === 429 || response.status === 503) {
-      const cooldownMs = geminiRetryDelayMs(response, payload);
-      providerCooldownUntil = Math.max(
-        providerCooldownUntil,
-        Date.now() + cooldownMs,
-      );
-    }
-    if (!response.ok) {
-      const diagnostic = logProviderError(
-        'gemini-direct',
-        endpoint,
-        model,
-        user,
-        response,
-        payload,
-      );
-      await notifyProviderError(onProviderError, diagnostic);
-      throw new Error(providerErrorMessage(response, payload));
-    }
-    return { response, payload };
-  }
-  throw new Error('Gemini API 503: tek yeniden denemeden sonra da yanıt alınamadı');
 }
 
 export function getUserIdentityKeys(user) {
@@ -309,104 +171,6 @@ function normalizeConfidence(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) return 0;
   return number > 1 && number <= 100 ? number / 100 : Math.min(number, 1);
-}
-
-function genderizeNameCandidate(user) {
-  const clean = value => normalizeText(value)
-    .replace(/[^a-z0-9\s'-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const fullName = clean(user?.full_name);
-  if (fullName.length >= 2 && fullName.length <= 100) return fullName;
-
-  const username = clean(user?.username).replace(/^@/, '');
-  const token = username
-    .split(/[_\-.]+/u)
-    .map(part => part.replace(/\d+$/u, ''))
-    .find(part => part.length >= 3 && /[a-z]/u.test(part));
-  return token || '';
-}
-
-async function waitForGenderizeSlot() {
-  const configuredInterval = Number(
-    globalThis.__TAKIPCI_ENV__?.GENDERIZE_MIN_REQUEST_INTERVAL_MS,
-  );
-  const minInterval = Number.isFinite(configuredInterval) && configuredInterval >= 0
-    ? configuredInterval
-    : 300;
-  const elapsed = Date.now() - lastGenderizeRequestAt;
-  if (lastGenderizeRequestAt && elapsed < minInterval) {
-    await wait(minInterval - elapsed);
-  }
-  lastGenderizeRequestAt = Date.now();
-}
-
-async function classifyWithGenderize(users, threshold) {
-  const resultsById = new Map();
-  const apiBase = String(globalThis.__TAKIPCI_ENV__?.AI_API_URL || '')
-    .trim()
-    .replace(/\/$/, '');
-  if (!apiBase) throw new Error('Cinsiyet analiz sunucusu ayarlanmamış');
-
-  const configuredBatchSize = Number(globalThis.__TAKIPCI_ENV__?.GENDERIZE_BATCH_SIZE);
-  const batchSize = Number.isFinite(configuredBatchSize)
-    ? Math.max(1, Math.min(10, Math.floor(configuredBatchSize)))
-    : 10;
-  const countryId = String(globalThis.__TAKIPCI_ENV__?.GENDERIZE_COUNTRY_ID || '')
-    .trim()
-    .toUpperCase();
-
-  for (let start = 0; start < users.length; start += batchSize) {
-    const batch = users.slice(start, start + batchSize);
-    await waitForGenderizeSlot();
-    const response = await fetch(apiBase, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: 'genderize',
-        country_id: countryId,
-        threshold,
-        users: batch.map(user => ({
-          id: user.id,
-          username: user.username,
-          full_name: user.full_name,
-        })),
-      }),
-    });
-    const payload = await readProviderPayload(response);
-    if (!response.ok) {
-      throw new Error(providerErrorMessage(response, payload));
-    }
-
-    for (const result of responseResults(payload)) {
-      const user = findPendingUser(result, batch);
-      if (!user) continue;
-      const probability = normalizeConfidence(result?.confidence);
-      const gender = probability >= threshold
-        ? normalizeGender(result?.gender)
-        : 'unknown';
-      resultsById.set(user.id, {
-        gender,
-        confidence: probability,
-        source: 'genderize',
-        genderize_name: String(result?.name || ''),
-        sample_count: Number(result?.count || 0),
-      });
-    }
-
-    for (const user of batch) {
-      if (!resultsById.has(user.id)) {
-        resultsById.set(user.id, {
-          gender: 'unknown',
-          confidence: 0,
-          source: 'genderize',
-          genderize_name: genderizeNameCandidate(user),
-        });
-      }
-    }
-  }
-  return resultsById;
 }
 
 async function fetchProfilePhotoDataUrl(user) {
@@ -725,16 +489,11 @@ export async function classifyGenderUsers(users, options = {}) {
     ]
       .includes(String(label?.source || ''));
     const currentSource = String(label?.source || '');
-    const genderizeCompleted = providerStatus.genderizeAvailable
-      && currentSource === 'genderize';
-    const providerMismatch =
-      (providerStatus.provider === 'genderize' && currentSource !== 'genderize') ||
-      (providerStatus.provider === 'server-ai' && currentSource !== 'server-ai') ||
-      (providerStatus.provider === 'gemini' && currentSource !== 'gemini-direct') ||
-      (providerStatus.provider === 'mistral-direct' && currentSource !== 'mistral-direct');
+    const providerMismatch = providerStatus.available
+      && currentSource !== 'server-ai';
     return options.force ||
       !label ||
-      (normalizeGender(label.gender) === 'unknown' && !genderizeCompleted) ||
+      normalizeGender(label.gender) === 'unknown' ||
       (providerStatus.available && localOnlyLabel) ||
       providerMismatch;
   });
@@ -805,37 +564,11 @@ export async function classifyGenderUsers(users, options = {}) {
     await storageSet({ [GENDER_STORAGE_KEY]: labels });
   }
 
-  if (pending.length && providerStatus.genderizeAvailable) {
-    let genderizeResults = new Map();
-    let genderizeError = '';
-    try {
-      genderizeResults = await classifyWithGenderize(pending, threshold);
-    } catch (error) {
-      genderizeError = String(error?.message || error || 'Genderize isteği başarısız')
-        .slice(0, 240);
-    }
-
-    for (const user of pending) {
-      const result = genderizeResults.get(user.id);
-      storeLabel(labels, user, result
-        ? {
-          ...result,
-          source: 'genderize',
-          error: genderizeError,
-        }
-        : {
-          gender: 'unknown',
-          confidence: 0,
-          source: 'genderize',
-          error: genderizeError || 'Bu kullanıcı adı için isim tahmini yapılamadı',
-        });
-    }
-    await storageSet({ [GENDER_STORAGE_KEY]: labels });
-  }
-
-  if (false && pending.length && providerStatus.available && !providerStatus.genderizeAvailable) {
-    const geminiApiKey = String(globalThis.__TAKIPCI_ENV__?.GEMINI_API_KEY || '').trim();
-    const mistralApiKey = String(globalThis.__TAKIPCI_ENV__?.MISTRAL_API_KEY || '').trim();
+  // Legacy provider calls are intentionally unreachable: provider credentials
+  // and model requests are handled only by the licensed API server.
+  if (false) {
+    const geminiApiKey = '';
+    const mistralApiKey = '';
     // Instagram CDN URLs can be signed or inaccessible to Mistral's servers.
     // Fetch each image while the browser session can access it, then send the
     // bounded image data directly to the selected AI provider.
@@ -905,7 +638,6 @@ export async function classifyGenderUsers(users, options = {}) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-goog-api-key': geminiApiKey,
             },
             body: JSON.stringify({
               contents: [{ role: 'user', parts }],
@@ -959,7 +691,6 @@ export async function classifyGenderUsers(users, options = {}) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${mistralApiKey}`,
             },
             body: JSON.stringify({
               model: visionModel,

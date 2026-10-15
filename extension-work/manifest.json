@@ -59,11 +59,8 @@
     "*://instagram.com/*",
     "*://*.fbcdn.net/*",
     "*://*.cdninstagram.com/*",
-    "https://api.mistral.ai/*",
-    "https://generativelanguage.googleapis.com/*",
-    "http://localhost:5000/*",
-    "https://*.replit.dev/*",
-    "https://*.replit.app/*"
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "declarative_net_request": {
     "rule_resources": [

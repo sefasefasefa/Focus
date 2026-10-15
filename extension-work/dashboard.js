@@ -344,16 +344,6 @@ function dovGetFemaleFollowingUsers(users, labels) {
 }
 
 function dovGenderForUser(user, labels = window.__dovGenderLabels || {}) {
-  const env = window.__TAKIPCI_ENV__ || {};
-  const provider = String(env.GENDER_PROVIDER || 'gemini').trim().toLowerCase();
-  const hasGenderProvider = provider === 'gemini'
-    ? Boolean(String(env.GEMINI_API_KEY || '').trim())
-    : provider === 'genderize'
-      ? Boolean(String(env.AI_API_URL || '').trim())
-      : provider === 'mistral'
-        ? Boolean(String(env.MISTRAL_API_KEY || '').trim())
-        : false;
-  if (!hasGenderProvider) return 'unknown';
   const id = String(user?.pk ?? user?.id ?? user?.user_id ?? '');
   const username = String(user?.username ?? '').replace(/^@/, '').toLowerCase();
   const label = labels[id]

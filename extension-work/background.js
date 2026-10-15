@@ -443,11 +443,9 @@ async function classifyGenderInBackground(users, options = {}) {
     classificationErrorCount: classificationErrorMessages.length,
     uniqueClassificationErrorCount: classificationErrors.length,
     classificationErrors: classificationErrors.slice(0, 3),
-    action: providerStatus.provider === 'mistral-direct'
-      ? 'Mistral API ile profil sınıflandırıldı'
-      : providerStatus.provider === 'gemini'
-        ? 'Gemini API, env.js içindeki anahtarla doğrudan kullanıldı'
-        : 'Genderize.io endpointi ile profil sınıflandırıldı',
+    action: providerStatus.available
+      ? 'Lisanslı API sunucusu üzerinden profil sınıflandırıldı'
+      : 'Lisanslı API sunucusu yapılandırılmamış',
   });
   return results;
 }
@@ -7011,16 +7009,19 @@ async function resolveInstagramProfileByUsername(username) {
 
 async function reanalyzeUnknownGenderRecords(options = {}) {
   const analyzeAllDashboardAccounts = options?.all === true;
-  const providerStatus = getGenderProviderStatus();
+  const apiSettings = await new Promise(resolve =>
+    chrome.storage.local.get([LICENSE_API_URL_KEY], resolve)
+  );
+  const providerStatus = getGenderProviderStatus(apiSettings[LICENSE_API_URL_KEY]);
   if (!providerStatus.available) {
     await appendDiscoveryLog('info', 'Dashboard Belirsiz kayıt analizi atlandı', {
       provider: 'none',
-      action: 'API anahtarı veya AI sunucu adresi yok; kartlar Belirsiz bırakıldı',
+      action: 'Lisans sunucusu adresi yok; kartlar Belirsiz bırakıldı',
     });
     return {
       ok: false,
       code: 'NO_GENDER_PROVIDER',
-      message: 'Cinsiyet analizi için önce API anahtarı veya AI sunucu adresi ekleyin. Kartlar Belirsiz olarak bırakıldı.',
+      message: 'Cinsiyet analizi için önce lisans sunucusu adresini kaydedip etkin bir lisansla bağlanın. Kartlar Belirsiz olarak bırakıldı.',
     };
   }
   const stored = await new Promise(resolve => chrome.storage.local.get([

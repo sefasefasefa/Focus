@@ -279,10 +279,8 @@
 
 ## 1.0.109 Gemini API anahtarıyla doğrudan sınıflandırma
 
-- `env.js` dosyasına `GEMINI_API_KEY` ve `GEMINI_MODEL` ayarları eklendi.
-- Cinsiyet analizi artık Gemini API'ye doğrudan, API anahtarı HTTP başlığında
-  olacak şekilde gönderiliyor; varsayılan olarak proxy sunucusu gerekmiyor.
-- Profil metni ve erişilebilen profil fotoğrafı Gemini isteğine ekleniyor.
+- Bu sürümdeki doğrudan Gemini davranışı artık geçerli değildir. Güncel sürümde
+  sağlayıcı anahtarı ve AI istekleri yalnızca lisans API sunucusunda bulunur.
 
 ## 1.0.107 tamamlanan takipçi taramasında güvenli rastgele profil
 
@@ -529,9 +527,9 @@
 - Geçici Mistral `429` veya ağ hatasında belirgin isim/bio sinyali tamamen
   kaybolmuyor; kayıt sonraki analizde AI'ya yeniden gönderilmek üzere
   işaretleniyor.
-- `env.js` içinde `MISTRAL_API_KEY` boşsa uzaktaki `AI_API_URL` kullanılır.
-  Doğrudan Mistral kullanmak için anahtarı yalnızca yerel `env.js` dosyanıza
-  ekleyin; anahtarı paylaşmayın.
+- Bu sürümdeki eski doğrudan Mistral yapılandırması artık desteklenmez. Güncel
+  sağlayıcı anahtarını yalnızca `self-hosted-api/.env` dosyasındaki sunucuya
+  girin; uzantıya veya dağıtım paketine eklemeyin.
 
 ## 1.0.70 Mistral belirsiz sonuç ve çoklu fotoğraf düzeltmesi
 
@@ -585,14 +583,14 @@
 
 ## 1.0.65 sağlayıcı yokken Dashboard etiket koruması
 
-- API anahtarı veya AI sunucu adresi yokken Dashboard keşif kartları da
+- Lisans sunucusu adresi yokken Dashboard keşif kartları da
   mevcut eski cinsiyet etiketlerini kullanmayıp **Belirsiz** görünür.
 - Kadın kartı filtresi ve otomatik takip akışı sağlayıcı eklenene kadar hiçbir
   eski etiket üzerinden takip isteği başlatmaz.
 
 ## 1.0.64 AI sağlayıcısı olmadan cinsiyet kontrolünü durdurma
 
-- API anahtarı veya AI sunucu adresi yoksa otomatik keşif artık cinsiyet
+- Lisans sunucusu adresi yoksa otomatik keşif artık cinsiyet
   sınıflandırması yapmaz.
 - Bu durumda adaylar yalnızca Dashboard'da **Belirsiz** görünür; yerel isim/
   biyografi fallback'i otomatik takip akışında kullanılmaz.
@@ -704,24 +702,11 @@ değerlendirilir. Yeterli sinyal yoksa sonuç bilinçli olarak `Belirsiz` kalır
 
 ## Cinsiyet sağlayıcısını seçme
 
-`env.js` içindeki `GENDER_PROVIDER` alanı varsayılan olarak `gemini` seçilidir.
-Kendi Gemini API anahtarınızı aynı dosyadaki `GEMINI_API_KEY` alanına girin ve
-uzantıyı tarayıcıda yeniden yükleyin. İstekler uzantı Service Worker'ından
-Google Gemini API'ye doğrudan gönderilir; Gemini için analiz sunucusu gerekmez.
-
-Gemini modelini `GEMINI_MODEL` alanından değiştirebilirsiniz. `AI_API_URL` yalnızca
-`GENDER_PROVIDER: 'genderize'` seçildiğinde kullanılan isteğe bağlı Genderize
-endpointidir.
-
-- `gemini`: Kullanıcı adı, görünen ad, biyografi ve varsa profil fotoğrafı Gemini
-  sınıflandırmasına sizin API anahtarınızla gönderilir.
-- `genderize`: Yalnızca ad ve kullanıcı adından ayrıştırılan isim Genderize.io'ya
-  gönderilir; profil fotoğrafı gönderilmez.
-
-**Güvenlik:** `env.js` anahtarı düz metin olarak içerir. Anahtarınızı sohbet
-mesajlarına, paylaşılan ZIP'lere veya herkese açık depolara koymayın. Eklentiye
-erişen kişiler anahtarı okuyabilir; Google AI Studio'da kullanım kotası ve
-faturalandırma sınırı ayarlamanız önerilir.
+Gemini/Mistral sağlayıcısı ve modeli `self-hosted-api/.env` dosyasında seçilir.
+`GEMINI_API_KEY` veya `MISTRAL_API_KEY` yalnızca lisans API sunucusunda
+bulunmalıdır. Tarayıcı eklentisi, etkin lisansla bu sunucuya istek gönderir;
+sağlayıcıya doğrudan bağlanmaz. Bu anahtarları `extension-work/env.js` dosyasına
+veya kullanıcılara dağıtılan eklenti klasörüne koymayın.
 
 ## Ortak hesap ve otomatik takip
 
