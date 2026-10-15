@@ -1,5 +1,12 @@
 # Takipçi Paneli
 
+## 1.0.153 Ücretsiz hesap ve deneme sonrası aylık satın alma
+
+- Herkes e-posta doğrulamasıyla ücretsiz hesap açabilir; satın alma e-postası veya sipariş numarası gerekmez.
+- E-posta doğrulandıktan sonra 7 günlük deneme otomatik başlar ve kullanıcı doğrudan oturum açar.
+- Deneme süresi dolduğunda sunucu korumalı işlemleri durdurur; hesap ve lisans ekranları yalnızca aylık paketi satın alma bağlantısını gösterir.
+- Yayındaki uzantıda `env.js` içindeki API adresi güncel, herkese açık HTTPS lisans sunucusunu göstermelidir; eski sunucu sürümleri hesap uç noktalarında 404 döndürebilir.
+
 ## 1.0.152 Hesap ve lisans doğrulamasında sipariş numarası kaldırıldı
 
 - Hesap oluşturma ve doğrudan lisans etkinleştirme sırasında kullanıcıdan

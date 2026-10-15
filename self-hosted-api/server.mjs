@@ -992,7 +992,10 @@ async function handleRequest(request, response) {
   if (request.method === "POST" && url.pathname === "/api/instagram/request") {
     return await handleInstagramRequest(request, response);
   }
-  return writeJson(response, 404, { ok: false, error: "Not found." });
+  return writeJson(response, 404, {
+    ok: false,
+    error: "API isteği bulunamadı. Sunucu adresini ve lisans API sürümünü kontrol edin.",
+  });
 }
 
 const accountHandlers = createAccountHandlers({

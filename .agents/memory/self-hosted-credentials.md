@@ -18,3 +18,9 @@ The extension must not ask users for a Shopier order number during account regis
 **Why:** The user explicitly said customers should not have to enter the Shopier order number during registration or similar flows.
 
 **How to apply:** Keep order IDs as server-side payment-record keys only; identify eligible purchases through the webhook-recorded buyer email and require proof of mailbox access before creating an account or issuing a device license.
+
+Each email account receives one 7-day free trial after email verification. After expiry, block licensed extension operations and direct the user to a configured monthly Shopier plan; do not accept non-monthly products for paid access.
+
+**Why:** The user wants anyone to create an account and use the product free for one week, then require a monthly purchase to continue.
+
+**How to apply:** Start the trial when verified signup creates the account, enforce expiry server-side on every protected operation, and show only a valid 30-day checkout option after expiry.

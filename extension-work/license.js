@@ -39,11 +39,28 @@
   let licenseActive = false;
   let sessionLinked = false;
   let licenseApiBaseUrl = "";
+  let trialExpiredNeedsPurchase = false;
+  let publicMonthlyPlans = [];
 
   function setStatus(label, detail, state = "loading") {
     elements.statusLabel.textContent = label;
     elements.statusDetail.textContent = detail;
     elements.statusPanel.dataset.state = state;
+  }
+
+  function renderTrialPurchaseLink() {
+    elements.statusPanel.querySelector(".trial-purchase-link")?.remove();
+    if (!trialExpiredNeedsPurchase) return;
+    const plan = publicMonthlyPlans.find(item => Number(item.days) === 30);
+    const checkout = safeCheckoutUrl(plan?.checkoutUrl);
+    if (!checkout) return;
+    const link = document.createElement("a");
+    link.className = "plan-link trial-purchase-link";
+    link.href = checkout;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = plan.name ? `${plan.name} satın al` : "Aylık lisans satın al";
+    elements.statusPanel.querySelector(".status-copy").append(link);
   }
 
   function setPlansState(title, detail) {
@@ -295,9 +312,21 @@
       const message = typeof result.message === "string" ? result.message : "";
       licenseActive = result.active === true;
       if (result.active === true) {
+        trialExpiredNeedsPurchase = false;
         setStatus("Lisans etkin", formatExpiry(result.expiresAt), "active");
+        renderTrialPurchaseLink();
+      } else if (result.trialExpired === true) {
+        trialExpiredNeedsPurchase = true;
+        setStatus(
+          "7 günlük ücretsiz deneme sona erdi",
+          "Devam etmek için aylık lisansı Shopier'de hesabının e-posta adresiyle satın almalısın. Satın alım olmadan erişim açılmaz.",
+          "inactive",
+        );
+        renderTrialPurchaseLink();
       } else {
+        trialExpiredNeedsPurchase = false;
         setStatus("Etkin lisans bulunamadı", message || "Satın alma bilgilerinle lisansını etkinleştirebilirsin.", "inactive");
+        renderTrialPurchaseLink();
       }
       await refreshInstagramSessionStatus();
     } catch (error) {
@@ -378,14 +407,19 @@
         throw new Error(typeof result?.error === "string" ? result.error : "Paket bilgileri sunucudan alınamadı.");
       }
       const plans = Array.isArray(result.plans) ? result.plans : [];
+      publicMonthlyPlans = plans.filter(plan => Number(plan.days) === 30);
       if (plans.length === 0) {
         setPlansState("Henüz paket yapılandırılmamış", "Paket seçenekleri lisans sunucusu tarafından henüz yayınlanmadı.");
+        renderTrialPurchaseLink();
         return;
       }
       plans.forEach(addPlan);
       setPlansState("Güncel paketler", "Fiyat ve ödeme bağlantıları lisans sunucusundan alınır.");
+      renderTrialPurchaseLink();
     } catch (error) {
+      publicMonthlyPlans = [];
       setPlansState("Paketlere şu an ulaşılamıyor", error?.message || "API sunucusunun çalıştığını kontrol edip tekrar deneyin.");
+      renderTrialPurchaseLink();
     } finally {
       configBusy = false;
       renderBusy();

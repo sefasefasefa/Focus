@@ -13,12 +13,14 @@
     deviceId: "",
     account: null,
     subscriptions: [],
+    monthlyPlans: [],
     view: "login",
     busy: false,
     message: "",
     messageKind: "",
     lastEmail: "",
     registerEmail: "",
+    registerPassword: "",
   };
 
   function storageGet(keys) {
@@ -120,7 +122,10 @@
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) {
-        const error = new Error(String(result?.error || "Sunucu isteği tamamlanamadı."));
+        const message = response.status === 404
+          ? "API isteği bulunamadı. Eklentideki sunucu adresini ve lisans API sürümünü kontrol edin."
+          : String(result?.error || "Sunucu isteği tamamlanamadı.");
+        const error = new Error(message);
         error.status = response.status;
         throw error;
       }
@@ -200,9 +205,9 @@
     root.innerHTML = `
       <section aria-labelledby="account-title">
         <button class="account-back" type="button" data-action="back">← Girişe dön</button>
-        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Hesap oluştur</h2><p class="account-subtitle">Satın alma e-postanı doğrula. Shopier sipariş numarası gerekmez.</p></div></div>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Ücretsiz hesap oluştur</h2><p class="account-subtitle">Satın alma gerekmez. E-postanı doğrula ve 7 gün ücretsiz kullan.</p></div></div>
         <form class="account-form" id="account-register-form">
-          <label class="account-field" for="account-email">Satın alma e-postası<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
+          <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
           <label class="account-field" for="account-password">Parola (en az 8 karakter)<input class="account-input" id="account-password" name="password" type="password" minlength="8" maxlength="256" autocomplete="new-password" required></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Hesap oluşturuluyor…" : "Hesap oluştur"}</button>
         </form>
@@ -222,7 +227,7 @@
     root.innerHTML = `
       <section aria-labelledby="account-title">
         <button class="account-back" type="button" data-action="back">← Kayıt bilgilerine dön</button>
-        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">E-postanı doğrula</h2><p class="account-subtitle">Satın alma e-postana gönderilen 6 haneli kodu gir. Kod 10 dakika geçerlidir.</p></div></div>
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">E-postanı doğrula</h2><p class="account-subtitle">E-postana gönderilen 6 haneli kodu gir. Hesabın açılınca 7 günlük denemen başlar; kod 10 dakika geçerlidir.</p></div></div>
         <form class="account-form" id="account-register-verify-form">
           <label class="account-field" for="account-verification-code">Doğrulama kodu<input class="account-input" id="account-verification-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Doğrulanıyor…" : "E-postayı doğrula ve hesabı oluştur"}</button>
@@ -247,12 +252,15 @@
 
   function statusLabel(status) {
     if (status === "active") return "Aktif";
+    if (status === "trial") return "Ücretsiz deneme";
     if (status === "expired") return "Süresi doldu";
     if (status === "revoked") return "İptal";
     return "Beklemede";
   }
 
   function renderHome() {
+    const hasActivePaidPlan = api.subscriptions.some(item => !item.isTrial && item.status === "active");
+    const trialExpired = !hasActivePaidPlan && api.subscriptions.some(item => item.isTrial && item.status === "expired");
     const subscriptionsMarkup = api.subscriptions.length
       ? `<div class="subscription-list">${api.subscriptions.map(item => `
           <article class="subscription-card">
@@ -269,10 +277,12 @@
         </div>
         <div class="account-divider"></div>
         <h3 class="subscription-title">Abonelikler</h3>
+        ${trialExpired ? `<aside class="trial-expired-notice"><strong>7 günlük ücretsiz denemen sona erdi.</strong><span>Devam etmek için aylık lisansı Shopier'de bu hesap e-postasıyla satın almalısın. Satın alım olmadan erişim açılmaz.</span><div data-monthly-purchase></div></aside>` : ""}
         <div data-subscription-list>${subscriptionsMarkup}</div>
         <p class="account-message" data-account-message role="status"></p>
       </section>`;
     root.querySelector("[data-account-email]").textContent = api.account?.email || "";
+    if (trialExpired) renderMonthlyPurchase(root.querySelector("[data-monthly-purchase]"));
     const cards = root.querySelectorAll(".subscription-card");
     cards.forEach((card, index) => {
       const subscription = api.subscriptions[index];
@@ -289,6 +299,67 @@
     });
     root.querySelector('[data-action="logout"]').addEventListener("click", handleLogout);
     renderMessage();
+  }
+
+  function safeCheckoutUrl(raw) {
+    try {
+      const url = new URL(String(raw || ""));
+      return url.protocol === "https:" ? url.href : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function renderMonthlyPurchase(container) {
+    if (!container) return;
+    const plan = api.monthlyPlans.find(item => Number(item.days) === 30);
+    const url = safeCheckoutUrl(plan?.checkoutUrl);
+    if (!url) {
+      container.textContent = "Aylık ödeme bağlantısı şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.";
+      return;
+    }
+    const link = document.createElement("a");
+    link.className = "account-button primary trial-purchase-link";
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = plan.name ? `${plan.name} satın al` : "Aylık lisans satın al";
+    container.append(link);
+  }
+
+  async function storeAccountLogin(result, email, apiBaseUrl, deviceId) {
+    if (!result.sessionToken || !result.account?.email) {
+      throw new Error("Sunucu geçerli bir hesap oturumu döndürmedi.");
+    }
+    api.url = apiBaseUrl;
+    api.account = {
+      email: result.account.email,
+      sessionToken: result.sessionToken,
+      sessionExpiresAt: Number(result.sessionExpiresAt) || 0,
+      apiBaseUrl,
+      deviceId,
+    };
+    api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
+    api.monthlyPlans = Array.isArray(result.monthlyPlans) ? result.monthlyPlans : [];
+    const values = {
+      [API_URL_KEY]: apiBaseUrl,
+      [DEVICE_ID_KEY]: deviceId,
+      [ACCOUNT_KEY]: api.account,
+    };
+    if (result.license?.accessToken) {
+      values[LICENSE_KEY] = {
+        apiBaseUrl,
+        deviceId,
+        accessToken: result.license.accessToken,
+        refreshToken: String(result.license.refreshToken || ""),
+        tokenExpiresAt: Number(result.license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,
+        validatedAt: Date.now(),
+        expiresAt: result.license.expiresAt == null ? null : Number(result.license.expiresAt),
+        licenseType: String(result.license.licenseType || ""),
+      };
+    }
+    await storageSet(values);
+    if (!result.license?.accessToken) await storageRemove([LICENSE_KEY]);
   }
 
   function renderSettings() {
@@ -382,36 +453,7 @@
         method: "POST",
         body: { email, password, deviceId },
       });
-      if (!result.sessionToken || !result.account?.email) {
-        throw new Error("Sunucu geçerli bir hesap oturumu döndürmedi.");
-      }
-      api.url = apiBaseUrl;
-      api.account = {
-        email: result.account.email,
-        sessionToken: result.sessionToken,
-        sessionExpiresAt: Number(result.sessionExpiresAt) || 0,
-        apiBaseUrl,
-        deviceId,
-      };
-      api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
-      const values = {
-        [API_URL_KEY]: apiBaseUrl,
-        [DEVICE_ID_KEY]: deviceId,
-        [ACCOUNT_KEY]: api.account,
-      };
-      if (result.license?.accessToken) {
-        values[LICENSE_KEY] = {
-          apiBaseUrl,
-          deviceId,
-          accessToken: result.license.accessToken,
-          refreshToken: String(result.license.refreshToken || ""),
-          tokenExpiresAt: Number(result.license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,
-          validatedAt: Date.now(),
-          expiresAt: result.license.expiresAt == null ? null : Number(result.license.expiresAt),
-        };
-      }
-      await storageSet(values);
-      if (!result.license?.accessToken) await storageRemove([LICENSE_KEY]);
+      await storeAccountLogin(result, email, apiBaseUrl, deviceId);
       api.busy = false;
       api.view = "home";
       clearMessage();
@@ -451,11 +493,12 @@
         body: { email, password },
       });
       api.registerEmail = email;
+      api.registerPassword = password;
       api.busy = false;
       api.view = "register-verify";
       clearMessage();
       render();
-      setMessage("E-postana uygun etkin bir satın alma varsa doğrulama kodu gönderildi.", "success");
+      setMessage("Doğrulama kodu e-postana gönderildi. 7 günlük ücretsiz deneme hesabın açılınca başlar.", "success");
     } catch (error) {
       api.busy = false;
       render();
@@ -483,17 +526,35 @@
     try {
       await permissionRequest;
       api.url = apiBaseUrl;
+      const email = api.registerEmail;
       await requestJson(apiBaseUrl, "/api/account/register/verify", {
         method: "POST",
-        body: { email: api.registerEmail, code },
+        body: { email, code },
       });
+      const deviceId = await ensureDeviceId();
+      try {
+        const result = await requestJson(apiBaseUrl, "/api/account/login", {
+          method: "POST",
+          body: { email, password: api.registerPassword, deviceId },
+        });
+        await storeAccountLogin(result, email, apiBaseUrl, deviceId);
+        api.view = "home";
+        clearMessage();
+      } catch {
+        api.lastEmail = email;
+        api.view = "login";
+        clearMessage();
+      }
       api.busy = false;
-      api.view = "login";
-      clearMessage();
       render();
-      root.querySelector("#account-email").value = api.registerEmail;
-      setMessage("E-posta doğrulandı ve hesap oluşturuldu. Şimdi giriş yapabilirsin.", "success");
+      setMessage(
+        api.view === "home"
+          ? "E-posta doğrulandı. 7 günlük ücretsiz denemen başladı."
+          : "Hesabın ve 7 günlük ücretsiz denemen oluşturuldu. Şimdi giriş yapabilirsin.",
+        "success",
+      );
       api.registerEmail = "";
+      api.registerPassword = "";
     } catch (error) {
       api.busy = false;
       render();
@@ -600,6 +661,8 @@
         token: api.account.sessionToken,
       });
       api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
+      const publicConfig = await requestJson(api.account.apiBaseUrl, "/api/public-config");
+      api.monthlyPlans = Array.isArray(publicConfig.plans) ? publicConfig.plans : [];
       await storageSet({ [ACCOUNT_KEY]: api.account });
       render();
     } catch (error) {

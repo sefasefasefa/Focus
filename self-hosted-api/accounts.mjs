@@ -80,14 +80,19 @@ export function createAccountHandlers({
     };
   }
 
-  async function sendPurchaseVerificationCode(email, code) {
+  async function sendPurchaseVerificationCode(email, code, purpose) {
+    const isRegistration = purpose === "registration";
     const transporter = nodemailer.createTransport(smtpSettings());
     await transporter.sendMail({
       from: process.env.SMTP_FROM,
       to: email,
-      subject: "RODON satın alma doğrulama kodu",
-      text: `RODON hesabını oluşturmak veya lisansını etkinleştirmek için doğrulama kodun: ${code}\n\nKod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.`,
-      html: `<p>RODON hesabını oluşturmak veya lisansını etkinleştirmek için doğrulama kodun:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>Kod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.</p>`,
+      subject: isRegistration ? "RODON ücretsiz hesap doğrulama kodu" : "RODON lisans doğrulama kodu",
+      text: isRegistration
+        ? `RODON ücretsiz hesabını doğrulama kodun: ${code}\n\nHesabın oluşturulunca 7 günlük ücretsiz denemen başlar. Kod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.`
+        : `RODON lisansını etkinleştirme kodun: ${code}\n\nKod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.`,
+      html: isRegistration
+        ? `<p>RODON ücretsiz hesabını doğrulama kodun:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>Hesabın oluşturulunca 7 günlük ücretsiz denemen başlar. Kod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.</p>`
+        : `<p>RODON lisansını etkinleştirme kodun:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>Kod 10 dakika içinde geçersiz olur. Bu isteği sen yapmadıysan bu e-postayı yok say.</p>`,
     });
   }
 
@@ -100,7 +105,7 @@ export function createAccountHandlers({
       ok: true,
       verificationRequired: true,
       message: purpose === "registration"
-        ? "Kod gönderme işlemi başlatıldı. Gelen kutunu ve spam klasörünü kontrol et."
+        ? "Hesap doğrulama isteği alındı. E-posta adresini ve spam klasörünü kontrol et."
         : "Bu e-posta için etkin bir lisans varsa doğrulama kodu gönderildi.",
     });
   }
@@ -171,7 +176,7 @@ export function createAccountHandlers({
     );
 
     try {
-      await sendPurchaseVerificationCode(email, code);
+      await sendPurchaseVerificationCode(email, code, purpose);
     } catch {
       db.prepare(`
         DELETE FROM purchase_email_verifications
@@ -223,6 +228,7 @@ export function createAccountHandlers({
       return {
         planName: isTrial ? `${FREE_TRIAL_DAYS} günlük ücretsiz deneme` : plan?.name || "Lisans paketi",
         status: order.revoked_at ? "revoked" : expired ? "expired" : isTrial ? "trial" : "active",
+        isTrial,
         purchasedAt: Number(order.paid_at),
         expiresAt: order.expires_at === null ? null : Number(order.expires_at),
       };
@@ -436,6 +442,8 @@ export function createAccountHandlers({
       license,
       subscriptions: listSubscriptions(emailHash),
       monthlyPlans: plans.filter(plan => Number(plan.days) === 30),
+      trialDays: FREE_TRIAL_DAYS,
+      monthlyPlanRequired: true,
     });
   }
 

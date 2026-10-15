@@ -153,7 +153,7 @@ async function validateExtensionLicense(force = false) {
   const license = stored[LICENSE_STATE_KEY] || {};
   const rawBase = String(stored[LICENSE_API_URL_KEY] || license.apiBaseUrl || '');
   if (!rawBase || !license.accessToken) {
-    return { active: false, message: 'Lisans etkin değil. Shopier sipariş bilgilerinizi girin.' };
+    return { active: false, message: 'Etkin deneme veya lisans bulunamadı. Ücretsiz hesap oluşturun ya da aylık lisans satın alın.' };
   }
   let apiBase;
   try {
@@ -164,7 +164,15 @@ async function validateExtensionLicense(force = false) {
   const licenseExpiresAt = license.expiresAt == null ? null : Number(license.expiresAt);
   if (licenseExpiresAt && licenseExpiresAt <= Date.now()) {
     await chrome.storage.local.remove(LICENSE_STATE_KEY);
-    return { active: false, expired: true, message: 'Lisans süreniz dolmuş.' };
+    const trialExpired = license.licenseType === 'trial';
+    return {
+      active: false,
+      expired: true,
+      trialExpired,
+      message: trialExpired
+        ? '7 günlük ücretsiz denemen sona erdi. Devam etmek için aylık lisans satın al.'
+        : 'Lisans süreniz dolmuş.',
+    };
   }
   const tokenExpiresAt = Number(license.tokenExpiresAt) || 0;
   const validatedAt = Number(license.validatedAt) || 0;
@@ -198,6 +206,7 @@ async function validateExtensionLicense(force = false) {
           expiresAt: refreshed.payload.expiresAt == null
             ? null
             : Number(refreshed.payload.expiresAt),
+          licenseType: String(refreshed.payload.licenseType || license.licenseType || ''),
         };
         await setLicenseStorage({
           [LICENSE_API_URL_KEY]: apiBase,
@@ -211,10 +220,21 @@ async function validateExtensionLicense(force = false) {
         };
       }
       if ([401, 403].includes(refreshed.response.status)) {
-        await chrome.storage.local.remove(LICENSE_STATE_KEY);
+        const trialExpired = refreshed.payload?.code === 'TRIAL_EXPIRED';
+        if (trialExpired) {
+          await setLicenseStorage({
+            [LICENSE_STATE_KEY]: {
+              ...license,
+              licenseType: 'trial',
+            },
+          });
+        } else {
+          await chrome.storage.local.remove(LICENSE_STATE_KEY);
+        }
         return {
           active: false,
           expired: refreshed.response.status === 403,
+          trialExpired,
           message: String(refreshed.payload?.error || 'Lisans oturumu yenilenemedi. Tekrar etkinleştirin.'),
         };
       }
@@ -232,12 +252,21 @@ async function validateExtensionLicense(force = false) {
       license.accessToken,
     );
     if (!response.ok || !payload?.accessToken) {
-      if (response.status === 401 || response.status === 403) {
+      const trialExpired = payload?.code === 'TRIAL_EXPIRED';
+      if (trialExpired) {
+        await setLicenseStorage({
+          [LICENSE_STATE_KEY]: {
+            ...license,
+            licenseType: 'trial',
+          },
+        });
+      } else if (response.status === 401 || response.status === 403) {
         await chrome.storage.local.remove(LICENSE_STATE_KEY);
       }
       return {
         active: false,
         expired: response.status === 403,
+        trialExpired,
         message: String(payload?.error || 'Lisans doğrulanamadı.'),
       };
     }
@@ -249,6 +278,7 @@ async function validateExtensionLicense(force = false) {
       tokenExpiresAt: Date.now() + 9 * 60 * 1000,
       validatedAt: Date.now(),
       expiresAt: payload.expiresAt == null ? null : Number(payload.expiresAt),
+      licenseType: String(payload.licenseType || license.licenseType || ''),
     };
     await setLicenseStorage({
       [LICENSE_API_URL_KEY]: apiBase,
@@ -257,6 +287,7 @@ async function validateExtensionLicense(force = false) {
     return {
       active: true,
       expiresAt: nextLicense.expiresAt,
+      licenseType: nextLicense.licenseType,
       apiBaseUrl: apiBase,
       accessToken: nextLicense.accessToken,
     };
@@ -311,6 +342,7 @@ async function activateExtensionLicense(input = {}) {
     tokenExpiresAt: Date.now() + 9 * 60 * 1000,
     validatedAt: Date.now(),
     expiresAt: payload.expiresAt == null ? null : Number(payload.expiresAt),
+    licenseType: String(payload.licenseType || ''),
   };
   await setLicenseStorage({
     [LICENSE_API_URL_KEY]: apiBase,
@@ -7901,6 +7933,7 @@ function dispatchExtensionMessage(msg, _sender, reply) {
       .then(status => reply({
         active: status.active,
         expired: Boolean(status.expired),
+        trialExpired: Boolean(status.trialExpired),
         expiresAt: status.expiresAt ?? null,
         message: status.message || '',
       }))
