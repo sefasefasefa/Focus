@@ -1,13 +1,18 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { licensePlans } from "./plans.mjs";
+import { recordPaidOrder } from "./orders.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.BIND_HOST || "127.0.0.1";
 const DB_PATH = resolve(process.env.DATA_PATH || "./data/licenses.sqlite");
 const TOKEN_TTL_MS = 10 * 60 * 1000;
+const REFRESH_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+// Validate public configuration before accepting payment notifications.
+const PLANS = licensePlans();
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const DEFAULT_MAX_DEVICES = Math.max(
   1,
@@ -37,30 +42,20 @@ db.exec(`
     PRIMARY KEY (order_id, device_id),
     FOREIGN KEY (order_id) REFERENCES shopier_orders(order_id) ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS shopier_renewals (
+    order_id TEXT PRIMARY KEY,
+    license_order_id TEXT NOT NULL REFERENCES shopier_orders(order_id),
+    paid_at INTEGER NOT NULL
+  );
 `);
+const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
+if (!deviceColumns.includes("refresh_hash")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_hash TEXT");
+if (!deviceColumns.includes("refresh_until")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_until INTEGER");
 
 const rateLimits = new Map();
 
 function productLicenseTerms() {
-  const raw = String(process.env.SHOPIER_LICENSE_PRODUCTS || "{}");
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("SHOPIER_LICENSE_PRODUCTS must be a JSON object of product IDs to license days.");
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("SHOPIER_LICENSE_PRODUCTS must be a JSON object.");
-  }
-  const result = new Map();
-  for (const [productId, daysValue] of Object.entries(parsed)) {
-    const days = Number(daysValue);
-    if (!productId.trim() || !Number.isInteger(days) || days < 0 || days > 36500) {
-      throw new Error("Each Shopier product must map to an integer license duration from 0 to 36500 days.");
-    }
-    result.set(String(productId), days);
-  }
-  return result;
+  return new Map(PLANS.map(plan => [plan.productId, plan.days]));
 }
 
 function writeJson(response, status, value) {
@@ -222,6 +217,10 @@ function isRateLimited(request, bucket) {
   const windowMs = 15 * 60 * 1000;
   const current = rateLimits.get(key);
   if (!current || current.until <= now) {
+    if (rateLimits.size > 10_000) {
+      for (const [entry, value] of rateLimits) if (value.until <= now) rateLimits.delete(entry);
+      if (rateLimits.size > 10_000) return true;
+    }
     rateLimits.set(key, { count: 1, until: now + windowMs });
     return false;
   }
@@ -277,7 +276,8 @@ async function handleShopierWebhook(request, response) {
   const orderId = String(order?.id || "").trim().slice(0, 160);
   const product = selectedProduct(order);
   const email = normalizedEmail(order?.billingInfo?.email || order?.shippingInfo?.email);
-  if (!orderId || !product || !email) {
+  if (!product) return writeJson(response, 200, { ok: true, ignored: true, reason: "unconfigured-product" });
+  if (!orderId || !email.includes("@")) {
     // Do not persist the incoming order body; it can contain address and identity data.
     console.warn("[license-api] Shopier paid order could not be matched to a configured product.");
     return writeJson(response, 503, { ok: false, error: "Shopier product or buyer email is not configured for licensing." });
@@ -285,25 +285,16 @@ async function handleShopierWebhook(request, response) {
 
   const created = Date.parse(String(order?.dateCreated || ""));
   const paidAt = Number.isFinite(created) ? created : Date.now();
-  const expiresAt = product.days === 0 ? null : paidAt + product.days * 24 * 60 * 60 * 1000;
   const dataSecret = String(process.env.LICENSE_DATA_SECRET || "");
   const signingSecret = String(process.env.LICENSE_SIGNING_SECRET || "");
   if (dataSecret.length < 32 || signingSecret.length < 32) {
     return writeJson(response, 503, { ok: false, error: "License service is not configured." });
   }
-  db.prepare(`
-    INSERT OR IGNORE INTO shopier_orders
-      (order_id, product_id, payment_status, email_hash, paid_at, expires_at, revoked_at, device_limit)
-    VALUES (?, ?, 'paid', ?, ?, ?, NULL, ?)
-  `).run(
-    orderId,
-    product.productId,
-    emailDigest(email),
-    paidAt,
-    expiresAt,
-    DEFAULT_MAX_DEVICES,
-  );
-  return writeJson(response, 200, { ok: true, received: true });
+  const result = recordPaidOrder(db, {
+    orderId, productId: product.productId, emailHash: emailDigest(email),
+    paidAt, days: product.days, deviceLimit: DEFAULT_MAX_DEVICES,
+  });
+  return writeJson(response, 200, { ok: true, received: true, ...result });
 }
 
 async function handleLicenseActivation(request, response) {
@@ -312,7 +303,9 @@ async function handleLicenseActivation(request, response) {
   }
   requireConfiguredLicenseSecrets();
   const input = await readJson(request, 16 * 1024);
-  const orderId = String(input?.orderId || "").trim().slice(0, 160);
+  const suppliedOrderId = String(input?.orderId || "").trim().slice(0, 160);
+  const renewal = db.prepare("SELECT license_order_id FROM shopier_renewals WHERE order_id = ?").get(suppliedOrderId);
+  const orderId = renewal?.license_order_id || suppliedOrderId;
   const email = normalizedEmail(input?.email);
   const deviceId = String(input?.deviceId || "").trim();
   if (!orderId || !email.includes("@") || email.length > 320 || !/^[a-zA-Z0-9_-]{16,128}$/.test(deviceId)) {
@@ -353,11 +346,34 @@ async function handleLicenseActivation(request, response) {
     `).run(Date.now(), orderId, deviceId);
   }
 
+  const refreshToken = randomBytes(48).toString("base64url");
+  db.prepare("UPDATE license_devices SET refresh_hash = ?, refresh_until = ? WHERE order_id = ? AND device_id = ?")
+    .run(hmacHex(process.env.LICENSE_SIGNING_SECRET, refreshToken), Date.now() + REFRESH_TTL_MS, orderId, deviceId);
   return writeJson(response, 200, {
     ok: true,
     accessToken: makeAccessToken(orderId, deviceId),
+    refreshToken,
     expiresAt: order.expires_at === null ? null : Number(order.expires_at),
   });
+}
+
+async function handleLicenseRefresh(request, response) {
+  requireConfiguredLicenseSecrets();
+  if (isRateLimited(request, "refresh")) return writeJson(response, 429, { ok: false, error: "Çok fazla yenileme denemesi." });
+  const input = await readJson(request, 16 * 1024);
+  const refreshToken = String(input?.refreshToken || "");
+  if (!/^[A-Za-z0-9_-]{64}$/.test(refreshToken)) {
+    return writeJson(response, 401, { ok: false, error: "Lisansı yeniden etkinleştirin." });
+  }
+  const device = db.prepare("SELECT order_id, device_id FROM license_devices WHERE refresh_hash = ? AND refresh_until > ?")
+    .get(hmacHex(process.env.LICENSE_SIGNING_SECRET, refreshToken), Date.now());
+  if (!device) return writeJson(response, 401, { ok: false, error: "Lisansı yeniden etkinleştirin." });
+  // Run the exact same expiry, revocation and device checks as normal validation.
+  const token = makeAccessToken(device.order_id, device.device_id);
+  const { order } = authenticateLicense({ headers: { authorization: `Bearer ${token}` } });
+  db.prepare("UPDATE license_devices SET refresh_until = ? WHERE order_id = ? AND device_id = ?")
+    .run(Date.now() + REFRESH_TTL_MS, device.order_id, device.device_id);
+  return writeJson(response, 200, { ok: true, accessToken: token, expiresAt: order.expires_at });
 }
 
 async function handleLicenseValidation(request, response) {
@@ -599,6 +615,7 @@ async function handleRequest(request, response) {
   if (request.method === "GET" && url.pathname === "/api/public-config") {
     return writeJson(response, 200, {
       shopierCheckoutUrl: String(process.env.SHOPIER_CHECKOUT_URL || "").trim(),
+      plans: PLANS,
     });
   }
   if (request.method === "POST" && url.pathname === "/api/webhooks/shopier") {
@@ -609,6 +626,9 @@ async function handleRequest(request, response) {
   }
   if (request.method === "POST" && url.pathname === "/api/license/validate") {
     return await handleLicenseValidation(request, response);
+  }
+  if (request.method === "POST" && url.pathname === "/api/license/refresh") {
+    return await handleLicenseRefresh(request, response);
   }
   if (request.method === "POST" && url.pathname === "/api/ai/gender") {
     return await handleAiGender(request, response);

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Lisans ve paketler · Takipçi</title>
+    <link rel="stylesheet" href="./license.css">
+    <script src="./env.js"></script>
+    <script defer src="./license.js"></script>
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <a class="back-link" href="./panel.html" aria-label="Takipçi paneline geri dön">
+          <span class="back-arrow" aria-hidden="true">←</span>
+          <span>Panele dön</span>
+        </a>
+        <div class="brand-lockup" aria-label="Rodon Takipçi">
+          <span class="brand-mark" aria-hidden="true">R</span>
+          <span class="brand-name">RODON <span>TAKİPÇİ</span></span>
+        </div>
+      </header>
+
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow"><span class="eyebrow-line"></span> LİSANS MERKEZİ</p>
+        <h1 id="page-title">Kullanımın<br><em>kontrolü sende.</em></h1>
+        <p class="intro-copy">Lisansını doğrula, süreni takip et veya sana uygun paketi seç.</p>
+      </section>
+
+      <section class="license-card surface" aria-labelledby="status-title">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">HESAP DURUMU</p>
+            <h2 id="status-title">Lisansın</h2>
+          </div>
+          <button class="button button-quiet button-small" id="refresh-status" type="button" aria-label="Lisans durumunu yenile">
+            <span class="refresh-symbol" aria-hidden="true">↻</span> Yenile
+          </button>
+        </div>
+        <div class="status-panel" id="license-status" role="status" aria-live="polite">
+          <span class="status-indicator" aria-hidden="true"></span>
+          <div class="status-copy">
+            <strong id="status-label">Durum kontrol ediliyor</strong>
+            <span id="status-detail">Lisans sunucusuna bağlanılıyor.</span>
+          </div>
+        </div>
+        <div class="status-actions">
+          <button class="button button-quiet" id="logout-button" type="button" disabled>Lisansı kaldır</button>
+          <span class="fine-print">Bu işlem yalnızca bu uzantıdaki lisans oturumunu kapatır.</span>
+        </div>
+      </section>
+
+      <section class="activation-card surface" aria-labelledby="activate-title">
+        <div class="section-heading">
+          <p class="section-kicker">SATIN ALMA SONRASI</p>
+          <h2 id="activate-title">Lisansını etkinleştir</h2>
+          <p>Shopier sipariş bilgilerinle lisansını bu tarayıcıya tanıt.</p>
+        </div>
+        <form id="activation-form" novalidate>
+          <label class="field">
+            <span>Sunucu adresi</span>
+            <input id="api-url" name="apiUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://lisans.ornek.com" aria-describedby="api-hint" required>
+            <small id="api-hint">Lisans hizmetinin HTTPS adresi.</small>
+          </label>
+          <div class="field-pair">
+            <label class="field">
+              <span>Shopier sipariş numarası</span>
+              <input id="order-id" name="orderId" type="text" autocomplete="off" placeholder="Sipariş numaranız" required>
+            </label>
+            <label class="field">
+              <span>Satın alma e-postası</span>
+              <input id="purchase-email" name="email" type="email" autocomplete="email" placeholder="ornek@eposta.com" required>
+            </label>
+          </div>
+          <button class="button button-primary button-wide" id="activate-button" type="submit">
+            <span>Bilgileri doğrula</span><span aria-hidden="true">→</span>
+          </button>
+          <p class="form-feedback" id="activation-feedback" role="status" aria-live="polite"></p>
+          <p class="privacy-note">E-posta adresin yalnızca doğrulama isteğinde kullanılır; uzantıda saklanmaz.</p>
+        </form>
+      </section>
+
+      <section class="plans-section" aria-labelledby="plans-title">
+        <div class="plans-heading">
+          <div>
+            <p class="section-kicker">PAKETLER</p>
+            <h2 id="plans-title">İhtiyacına göre seç</h2>
+          </div>
+          <button class="button button-quiet button-small" id="refresh-plans" type="button">Paketleri yenile</button>
+        </div>
+        <div class="plans-state" id="plans-state" role="status" aria-live="polite">
+          <span class="state-mark" aria-hidden="true"></span>
+          <div>
+            <strong id="plans-state-title">Paketler yükleniyor</strong>
+            <p id="plans-state-detail">Güncel paket bilgileri sunucudan alınıyor.</p>
+          </div>
+        </div>
+        <div class="plans-grid" id="plans-list" aria-live="polite"></div>
+      </section>
+
+      <aside class="renewal-note" aria-labelledby="renewal-title">
+        <span class="renewal-index" aria-hidden="true">01</span>
+        <div>
+          <p class="section-kicker">SÜREYİ UZATMA</p>
+          <h2 id="renewal-title">Aynı e-posta, yeni sipariş.</h2>
+          <p>Aylık yenileme için Shopier’den yeni bir sipariş ver. Aynı satın alma e-postasıyla alınan yeni ürün lisans süresine sunucu tarafında eklenir. Ardından <strong>Yenile</strong> düğmesine bas. Yeni sipariş ilk etkinleştirmeyi de başlatabilir.</p>
+        </div>
+      </aside>
+
+      <footer class="page-footer">
+        <span>RODON <span class="footer-dot">·</span> TAKİPÇİ LİSANS MERKEZİ</span>
+        <a href="./panel.html">Panele geri dön</a>
+      </footer>
+    </main>
+  </body>
+</html>
