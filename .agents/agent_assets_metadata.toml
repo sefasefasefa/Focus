@@ -70,3 +70,17 @@ mtime_ms = 1792072774695
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:b30de9ce-e777-43c2-a174-5e1f21317677/6f19c4c1-d805-4ba7-8c09-1e7c299a78af/95f74fd1-7b68-4670-8a04-c51abf0cf8c3"
 storage_version_token = "1792072782615254"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "avlt8qsrhvcK3O0vwAstd"
+uri = "file://generated-artifacts/takipci-paneli-1.0.152.zip"
+type = "unspecified"
+title = "Takipçi Paneli 1.0.152 — tarayıcı eklentisi ZIP’i"
+description = "Shopier sipariş numarası istemeyen, e-posta kodlu doğrulama güncellemesini içeren dağıtım paketi. Sunucu/API dosyaları dahil değildir."
+logical_id = "1c3b25e9-c93d-495e-a0ff-b26a72fc766c"
+content_hash = "sha256:de42b691133a6648b66548d6b88b5e44fa7549336450b862995403be72b88d08"
+size = 422120
+mtime_ms = 1792084609140
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:1b3444b8-b9aa-48f1-8668-3cf76d564ef0/1c3b25e9-c93d-495e-a0ff-b26a72fc766c/457d3a7b-d388-4cc1-80a0-7e060a402a63"
+storage_version_token = "1792084615321823"
+content_type = "application/octet-stream"
