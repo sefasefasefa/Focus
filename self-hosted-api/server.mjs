@@ -85,7 +85,7 @@ function writeJson(response, status, value) {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "x-content-type-options": "nosniff",
@@ -96,7 +96,7 @@ function writeJson(response, status, value) {
 function writePreflight(response) {
   response.writeHead(204, {
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "cache-control": "no-store",
@@ -260,30 +260,69 @@ async function handleInstagramSession(request, response) {
     return writeJson(response, 200, { ok: true, linked: false });
   }
 
-  if (request.method !== "POST") {
+  if (request.method !== "POST" && request.method !== "PATCH") {
     return writeJson(response, 405, { ok: false, error: "Method not allowed." });
   }
-  if (isRateLimited(request, "instagram-session-link")) {
+  if (request.method === "POST" && isRateLimited(request, "instagram-session-link")) {
     throw Object.assign(new Error("Çok sık oturum bağlantısı denendi; daha sonra tekrar deneyin."), {
       status: 429,
     });
   }
 
   const input = await readJson(request, 32 * 1024);
-  const session = sanitizeInstagramSession(input);
-  session.consentAt = Date.now();
+  const session = request.method === "PATCH"
+    ? sanitizeInstagramSession({
+        ...input,
+        consent: true,
+        consentVersion: "instagram-session-v1",
+      })
+    : sanitizeInstagramSession(input);
+  if (request.method === "PATCH") {
+    const existing = db.prepare(`
+      SELECT instagram_user_id, consented_at
+      FROM instagram_sessions WHERE order_id = ? AND device_id = ?
+    `).get(token.orderId, token.deviceId);
+    if (!existing) {
+      throw Object.assign(new Error("Instagram oturumu henüz açık onayla bağlanmamış."), {
+        status: 409,
+      });
+    }
+    if (String(existing.instagram_user_id) !== session.instagramUserId) {
+      throw Object.assign(new Error("Instagram hesabı değişmiş. Yeni hesabı bağlamak için önce eski oturum bağlantısını kaldırın."), {
+        status: 409,
+      });
+    }
+    session.consentAt = Number(existing.consented_at);
+  } else {
+    session.consentAt = Date.now();
+  }
   const encrypted = encryptInstagramSession(
     session,
     getInstagramSessionKey(),
     key,
   );
   const now = Date.now();
-  db.prepare(`
-    INSERT INTO instagram_sessions (
-      order_id, device_id, instagram_user_id, ciphertext, iv, tag,
-      consented_at, created_at, updated_at, last_request_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-    ON CONFLICT(order_id, device_id) DO UPDATE SET
+  if (request.method === "PATCH") {
+    db.prepare(`
+      UPDATE instagram_sessions SET
+        ciphertext = ?, iv = ?, tag = ?, updated_at = ?
+      WHERE order_id = ? AND device_id = ? AND instagram_user_id = ?
+    `).run(
+      encrypted.ciphertext,
+      encrypted.iv,
+      encrypted.tag,
+      now,
+      token.orderId,
+      token.deviceId,
+      session.instagramUserId,
+    );
+  } else {
+    db.prepare(`
+      INSERT INTO instagram_sessions (
+        order_id, device_id, instagram_user_id, ciphertext, iv, tag,
+        consented_at, created_at, updated_at, last_request_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ON CONFLICT(order_id, device_id) DO UPDATE SET
       instagram_user_id = excluded.instagram_user_id,
       ciphertext = excluded.ciphertext,
       iv = excluded.iv,
@@ -291,18 +330,19 @@ async function handleInstagramSession(request, response) {
       consented_at = excluded.consented_at,
       updated_at = excluded.updated_at,
       last_request_at = 0
-  `).run(
-    token.orderId,
-    token.deviceId,
-    session.instagramUserId,
-    encrypted.ciphertext,
-    encrypted.iv,
-    encrypted.tag,
-    session.consentAt,
-    now,
-    now,
-  );
-  return writeJson(response, 201, {
+    `).run(
+      token.orderId,
+      token.deviceId,
+      session.instagramUserId,
+      encrypted.ciphertext,
+      encrypted.iv,
+      encrypted.tag,
+      session.consentAt,
+      now,
+      now,
+    );
+  }
+  return writeJson(response, request.method === "PATCH" ? 200 : 201, {
     ok: true,
     linked: true,
     instagramUserId: session.instagramUserId,
@@ -351,6 +391,7 @@ function normalizeInstagramProxyRequest(input) {
     "content-type",
     "user-agent",
     "x-asbd-id",
+    "x-fb-dtsg",
     "x-fb-friendly-name",
     "x-fb-lsd",
     "x-ig-app-id",
@@ -379,7 +420,7 @@ async function handleInstagramRequest(request, response) {
   const input = await readJson(request, 600 * 1024);
   const normalized = normalizeInstagramProxyRequest(input);
   const key = `${token.orderId}:${token.deviceId}`;
-  const row = db.prepare(`
+  let row = db.prepare(`
     SELECT instagram_user_id, ciphertext, iv, tag, last_request_at
     FROM instagram_sessions WHERE order_id = ? AND device_id = ?
   `).get(token.orderId, token.deviceId);
@@ -387,6 +428,39 @@ async function handleInstagramRequest(request, response) {
     throw Object.assign(new Error("Instagram oturumu sunucuya bağlanmamış. Lisans sayfasından bağlayın."), {
       status: 409,
     });
+  }
+
+  if (input?.session && typeof input.session === "object") {
+    const latestSession = sanitizeInstagramSession({
+      ...input.session,
+      consent: true,
+      consentVersion: "instagram-session-v1",
+    });
+    if (latestSession.instagramUserId !== String(row.instagram_user_id)) {
+      throw Object.assign(new Error("Instagram hesabı değişmiş. Önce oturum bağlantısını kaldırıp yeniden onaylayın."), {
+        status: 409,
+      });
+    }
+    const encrypted = encryptInstagramSession(latestSession, getInstagramSessionKey(), key);
+    const refreshed = db.prepare(`
+      UPDATE instagram_sessions SET ciphertext = ?, iv = ?, tag = ?, updated_at = ?
+      WHERE order_id = ? AND device_id = ? AND instagram_user_id = ?
+    `).run(
+      encrypted.ciphertext,
+      encrypted.iv,
+      encrypted.tag,
+      Date.now(),
+      token.orderId,
+      token.deviceId,
+      latestSession.instagramUserId,
+    );
+    if (refreshed.changes !== 1) {
+      throw Object.assign(new Error("Instagram oturumu güncellenemedi."), { status: 409 });
+    }
+    row = db.prepare(`
+      SELECT instagram_user_id, ciphertext, iv, tag, last_request_at
+      FROM instagram_sessions WHERE order_id = ? AND device_id = ?
+    `).get(token.orderId, token.deviceId);
   }
 
   const now = Date.now();
@@ -893,7 +967,7 @@ async function handleRequest(request, response) {
   }
   if (
     url.pathname === "/api/instagram/session" &&
-    ["GET", "POST", "DELETE"].includes(request.method)
+    ["GET", "POST", "PATCH", "DELETE"].includes(request.method)
   ) {
     return await handleInstagramSession(request, response);
   }

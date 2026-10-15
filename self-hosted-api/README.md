@@ -37,6 +37,8 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 - `POST /api/license/activate` — sipariş numarası + satın alma e-postası ile cihaz etkinleştirme
 - `POST /api/license/validate` — kısa ömürlü erişim belirtecini yenileme
 - `POST /api/ai/gender` — aktif lisansla AI sınıflandırması
+- `GET/POST/PATCH/DELETE /api/instagram/session` — lisans/cihaz oturumunu görme, açık onayla bağlama, güncelleme ve silme
+- `POST /api/instagram/request` — lisanslı cihazın Instagram REST/GraphQL isteğini kendi oturumu ile iletme
 
 Etkinleştirme varsayılan olarak sipariş başına en fazla iki cihaz kabul eder. `LICENSE_MAX_DEVICES_DEFAULT` ile değiştirilebilir. Lisansı iptal etmek için:
 
@@ -49,5 +51,7 @@ node --env-file=.env admin.mjs revoke <shopier-order-id>
 
 - `.env` ve `data/` klasörü yedeklenmeli, fakat eklentiye veya herkese açık ZIP'e eklenmemeli.
 - Shopier webhook token'ı, AI anahtarları ve imzalama sırları sadece bu sunucuda kalmalı.
-- Instagram oturum çerezleri bu API'ye gönderilmez; Instagram ile ilgili tarayıcı işlemleri kullanıcının kendi Instagram oturumunda kalır.
+- Instagram oturumu yalnızca eklentide açık kullanıcı onayı verildikten sonra bu sunucuya gönderilir. HTTPS üzerinden gelen çerezler, her lisans/cihaz kaydı için AES-256-GCM ile şifrelenerek diskte saklanır; ham değerler yalnızca istek işlenirken bellekte açılır.
+- Eklenti tarayıcıdaki güncel çerezleri her Instagram API isteğinde, çerez değiştiğinde ve beş dakikada bir sunucuya eşitler. Oturum geçersizleşirse tarayıcıda Instagram'a yeniden giriş gerekir; `doc_id` yenilemek oturumun yerini tutmaz.
+- Sunucudaki Instagram oturumu lisans siparişi ve cihaz kimliğine bağlıdır. Aynı cihazda başka Instagram hesabına geçmek için önce oturum bağlantısını silip yeni hesap için yeniden açık onay verilmelidir.
 - Eklenti kodu istemci tarafında olduğundan cracklenebilir. Sunucu API'si, lisanslar ve anahtarlar korunur; yerel Instagram işlemleri için mutlak kopya/atlatma koruması garanti edilemez.

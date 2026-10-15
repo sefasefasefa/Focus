@@ -15,6 +15,13 @@
     statusPanel: document.getElementById("license-status"),
     statusLabel: document.getElementById("status-label"),
     statusDetail: document.getElementById("status-detail"),
+    sessionPanel: document.getElementById("instagram-session-status"),
+    sessionLabel: document.getElementById("instagram-session-label"),
+    sessionDetail: document.getElementById("instagram-session-detail"),
+    sessionConsent: document.getElementById("instagram-session-consent"),
+    sessionLinkButton: document.getElementById("instagram-session-link"),
+    sessionUnlinkButton: document.getElementById("instagram-session-unlink"),
+    sessionFeedback: document.getElementById("instagram-session-feedback"),
     refreshPlans: document.getElementById("refresh-plans"),
     plansState: document.getElementById("plans-state"),
     plansTitle: document.getElementById("plans-state-title"),
@@ -26,6 +33,9 @@
   let configBusy = false;
   let activationBusy = false;
   let logoutBusy = false;
+  let sessionBusy = false;
+  let licenseActive = false;
+  let sessionLinked = false;
 
   function setStatus(label, detail, state = "loading") {
     elements.statusLabel.textContent = label;
@@ -44,11 +54,28 @@
     else delete elements.activationFeedback.dataset.kind;
   }
 
+  function setInstagramSessionStatus(label, detail, state = "loading") {
+    elements.sessionLabel.textContent = label;
+    elements.sessionDetail.textContent = detail;
+    elements.sessionPanel.dataset.state = state;
+  }
+
+  function setInstagramSessionFeedback(message, kind = "error") {
+    elements.sessionFeedback.textContent = message;
+    if (message) elements.sessionFeedback.dataset.kind = kind;
+    else delete elements.sessionFeedback.dataset.kind;
+  }
+
   function renderBusy() {
     elements.refreshStatus.disabled = statusBusy || !runtimeAvailable;
     elements.refreshPlans.disabled = configBusy || !runtimeAvailable;
     elements.activateButton.disabled = activationBusy || !runtimeAvailable;
     elements.logoutButton.disabled = logoutBusy || statusBusy || !runtimeAvailable;
+    elements.sessionLinkButton.disabled =
+      sessionBusy || !runtimeAvailable || !licenseActive ||
+      !elements.sessionConsent.checked || sessionLinked;
+    elements.sessionUnlinkButton.disabled =
+      sessionBusy || !runtimeAvailable || !licenseActive || !sessionLinked;
     elements.refreshStatus.setAttribute("aria-busy", String(statusBusy));
     elements.refreshPlans.setAttribute("aria-busy", String(configBusy));
     elements.activateButton.setAttribute("aria-busy", String(activationBusy));
@@ -124,11 +151,122 @@
     return parsed.toString().replace(/\/$/, "");
   }
 
+  function permissionCall(method, details) {
+    return new Promise((resolve, reject) => {
+      if (!globalThis.chrome?.permissions?.[method]) {
+        reject(new Error("Sunucu adresi için uzantı site izni kullanılamıyor."));
+        return;
+      }
+      chrome.permissions[method](details, (granted) => {
+        const runtimeError = chrome.runtime?.lastError;
+        if (runtimeError) reject(new Error(runtimeError.message || "Sunucu izni alınamadı."));
+        else resolve(granted);
+      });
+    });
+  }
+
+  async function ensureServerPermission(apiBaseUrl, requestIfMissing) {
+    const origin = new URL(apiBaseUrl).origin;
+    const permission = { origins: [`${origin}/*`] };
+    if (requestIfMissing) {
+      if (await permissionCall("request", permission)) return;
+      throw new Error("Sunucuya erişim izni verilmedi; lisans ve Instagram işlemleri çalışamaz.");
+    }
+    if (!(await permissionCall("contains", permission))) {
+      throw new Error("Sunucu izni eksik. İzin penceresini açmak için Paketleri yenile’ye basın.");
+    }
+  }
+
   function formatExpiry(value) {
     if (!value) return "Bitiş tarihi bilgisi sunulmadı.";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "Sunucudan gelen bitiş tarihi okunamadı.";
     return `Bitiş: ${new Intl.DateTimeFormat("tr-TR", { dateStyle: "long", timeStyle: "short" }).format(date)}`;
+  }
+
+  async function refreshInstagramSessionStatus() {
+    if (!licenseActive) {
+      sessionLinked = false;
+      setInstagramSessionStatus("Lisans gerekli", "Önce lisansını etkinleştir.", "inactive");
+      renderBusy();
+      return;
+    }
+    try {
+      const result = await sendMessage({ type: "INSTAGRAM_SESSION_STATUS" });
+      if (!result || result.ok !== true) {
+        throw new Error(typeof result?.error === "string" ? result.error : "Oturum durumu alınamadı.");
+      }
+      sessionLinked = result.linked === true;
+      if (sessionLinked) {
+        setInstagramSessionStatus(
+          "Instagram oturumu bağlı",
+          `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Oturum, isteklerle güncel tutulur.`,
+          "active",
+        );
+      } else {
+        setInstagramSessionStatus("Instagram oturumu bağlı değil", "Instagram’da giriş yaptıktan sonra aşağıdaki onayla bağla.", "inactive");
+      }
+    } catch (error) {
+      sessionLinked = false;
+      setInstagramSessionStatus("Oturum durumu alınamadı", error?.message || "Sunucu bağlantısını kontrol et.", "error");
+    } finally {
+      renderBusy();
+    }
+  }
+
+  async function linkInstagramSession() {
+    if (sessionBusy || !elements.sessionConsent.checked) return;
+    sessionBusy = true;
+    setInstagramSessionFeedback("");
+    setInstagramSessionStatus("Oturum bağlanıyor", "Güncel oturum bilgileri güvenli bağlantıyla sunucuya gönderiliyor.", "loading");
+    renderBusy();
+    try {
+      const apiBaseUrl = validateApiUrl(elements.apiUrl.value);
+      await ensureServerPermission(apiBaseUrl, true);
+      await saveUrl(apiBaseUrl);
+      const result = await sendMessage({ type: "INSTAGRAM_SESSION_LINK" });
+      if (!result || result.ok !== true || result.linked !== true) {
+        throw new Error(typeof result?.error === "string" ? result.error : "Instagram oturumu bağlanamadı.");
+      }
+      sessionLinked = true;
+      elements.sessionConsent.checked = false;
+      setInstagramSessionFeedback("Onay kaydedildi; oturum sunucuya bağlandı.", "success");
+      setInstagramSessionStatus(
+        "Instagram oturumu bağlı",
+        `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Güncel oturum eklentiden düzenli aktarılır.`,
+        "active",
+      );
+    } catch (error) {
+      sessionLinked = false;
+      setInstagramSessionStatus("Oturum bağlanamadı", error?.message || "Instagram oturumunu ve sunucu adresini kontrol et.", "error");
+      setInstagramSessionFeedback(error?.message || "Instagram oturumu bağlanamadı.");
+    } finally {
+      sessionBusy = false;
+      renderBusy();
+    }
+  }
+
+  async function unlinkInstagramSession() {
+    if (sessionBusy || !sessionLinked) return;
+    if (!globalThis.confirm("Sunucuda şifreli saklanan Instagram oturumu silinsin mi?")) return;
+    sessionBusy = true;
+    setInstagramSessionFeedback("");
+    renderBusy();
+    try {
+      const result = await sendMessage({ type: "INSTAGRAM_SESSION_UNLINK" });
+      if (!result || result.ok !== true) {
+        throw new Error(typeof result?.error === "string" ? result.error : "Instagram oturumu kaldırılamadı.");
+      }
+      sessionLinked = false;
+      setInstagramSessionStatus("Instagram oturumu kaldırıldı", "Sunucudaki oturum kopyası silindi; takip/beğeni işlemleri durur.", "inactive");
+      setInstagramSessionFeedback("Sunucudaki Instagram oturumu silindi.", "success");
+    } catch (error) {
+      setInstagramSessionStatus("Oturum kaldırılamadı", error?.message || "Sunucu bağlantısını kontrol et.", "error");
+      setInstagramSessionFeedback(error?.message || "Instagram oturumu kaldırılamadı.");
+    } finally {
+      sessionBusy = false;
+      renderBusy();
+    }
   }
 
   async function refreshStatus() {
@@ -140,13 +278,17 @@
       const result = await sendMessage({ type: "LICENSE_GET_STATUS", force: true });
       if (!result || typeof result !== "object") throw new Error("Lisans sunucusu geçerli bir yanıt vermedi.");
       const message = typeof result.message === "string" ? result.message : "";
+      licenseActive = result.active === true;
       if (result.active === true) {
         setStatus("Lisans etkin", formatExpiry(result.expiresAt), "active");
       } else {
         setStatus("Etkin lisans bulunamadı", message || "Satın alma bilgilerinle lisansını etkinleştirebilirsin.", "inactive");
       }
+      await refreshInstagramSessionStatus();
     } catch (error) {
+      licenseActive = false;
       setStatus("Lisans sunucusuna ulaşılamıyor", error?.message || "Bağlantı kurulamadı. Sunucu adresini ve bağlantını kontrol edip yeniden dene.", "error");
+      await refreshInstagramSessionStatus();
     } finally {
       statusBusy = false;
       renderBusy();
@@ -206,7 +348,7 @@
     elements.plansList.append(card);
   }
 
-  async function refreshPlans() {
+  async function refreshPlans(requestPermission = false) {
     if (configBusy) return;
     configBusy = true;
     renderBusy();
@@ -214,6 +356,7 @@
     setPlansState("Paketler yükleniyor", "Güncel paket bilgileri sunucudan alınıyor.");
     try {
       const apiBaseUrl = validateApiUrl(elements.apiUrl.value);
+      await ensureServerPermission(apiBaseUrl, requestPermission);
       await saveUrl(apiBaseUrl);
       const result = await sendMessage({ type: "LICENSE_PUBLIC_CONFIG", apiBaseUrl });
       if (!result || typeof result !== "object" || result.ok !== true) {
@@ -245,6 +388,7 @@
       apiBaseUrl = validateApiUrl(elements.apiUrl.value);
       if (!orderId) throw new Error("Shopier sipariş numaranı gir.");
       if (!elements.email.checkValidity()) throw new Error("Geçerli bir satın alma e-postası gir.");
+      await ensureServerPermission(apiBaseUrl, true);
     } catch (error) {
       setFeedback(error.message);
       return;
@@ -266,7 +410,9 @@
       setFeedback("Lisansın başarıyla etkinleştirildi.", "success");
       elements.orderId.value = "";
       elements.email.value = "";
+      licenseActive = true;
       setStatus("Lisans etkin", formatExpiry(result.expiresAt), "active");
+      await refreshInstagramSessionStatus();
     } catch (error) {
       const message = error?.message || "Lisans sunucusuna ulaşılamadı. Biraz sonra tekrar dene.";
       setFeedback(message);
@@ -295,10 +441,21 @@
     }
   }
 
-  elements.refreshStatus.addEventListener("click", refreshStatus);
-  elements.refreshPlans.addEventListener("click", refreshPlans);
+  elements.refreshStatus.addEventListener("click", async () => {
+    try {
+      await ensureServerPermission(validateApiUrl(elements.apiUrl.value), true);
+    } catch (error) {
+      setStatus("Sunucu izni gerekli", error?.message || "Sunucu erişim iznini verip yeniden dene.", "error");
+      return;
+    }
+    await refreshStatus();
+  });
+  elements.refreshPlans.addEventListener("click", () => refreshPlans(true));
   elements.activationForm.addEventListener("submit", handleActivation);
   elements.logoutButton.addEventListener("click", logout);
+  elements.sessionConsent.addEventListener("change", renderBusy);
+  elements.sessionLinkButton.addEventListener("click", linkInstagramSession);
+  elements.sessionUnlinkButton.addEventListener("click", unlinkInstagramSession);
 
   async function initialize() {
     if (!runtimeAvailable) {

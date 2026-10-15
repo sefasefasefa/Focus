@@ -1,5 +1,18 @@
 # Takipçi Paneli
 
+## 1.0.149 Sunucu üzerinden Instagram işlemleri ve oturum eşitleme
+
+- Takipçi/takip listesi, takip isteği ve beğeni API istekleri artık lisans
+  sunucusundaki Instagram proxy'sinden geçirilir.
+- Eklenti, kullanıcı lisans merkezinde açıkça onayladıktan sonra Instagram
+  oturum çerezlerini HTTPS ile kendi sunucusuna iletir. Oturum; her API isteğinde,
+  çerez değişikliğinde ve beş dakikalık aralıklarla güncellenir.
+- Sunucu oturumu lisans/cihaz bazında AES-256-GCM ile saklar. Instagram hesabı
+  değişirse oturum kendiliğinden başka hesaba geçirilmez; kullanıcı yeniden
+  açık onay vermelidir.
+- `doc_id` ve GraphQL değişkenleri istek gövdesinde sunucuya iletilir; `doc_id`
+  oturum çerezi değildir ve oturumu yenilemez.
+
 ## 1.0.148 Gönderi kısmi hata sonucu korunuyor
 
 - Kullanılabilir gönderi verisiyle birlikte gelen isteğe bağlı

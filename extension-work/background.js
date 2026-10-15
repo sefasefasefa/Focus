@@ -57,6 +57,8 @@ const PROFILE_LOOKUP_TIMEOUT_MS = 75 * 1000;
 const LICENSE_STATE_KEY = 'tpLicenseState';
 const LICENSE_API_URL_KEY = 'tpLicenseApiBaseUrl';
 const LICENSE_DEVICE_ID_KEY = 'tpLicenseDeviceId';
+const INSTAGRAM_SESSION_CONSENT_KEY = 'tpInstagramSessionConsent';
+const INSTAGRAM_SESSION_SYNC_ALARM = 'tp-instagram-session-sync';
 const LICENSE_VALIDATION_CACHE_MS = 30 * 1000;
 // Keep one compact summary for a whole browser activity burst. A short
 // debounce produced several nearly identical lines while Instagram loaded
@@ -98,19 +100,26 @@ async function getOrCreateLicenseDeviceId() {
   return created;
 }
 
-async function postLicenseApi(apiBase, endpoint, body, accessToken = '') {
+async function licenseApiRequest(
+  apiBase,
+  endpoint,
+  method = 'POST',
+  body,
+  accessToken = '',
+  timeoutMs = 12_000,
+) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${apiBase}${endpoint}`, {
-      method: 'POST',
+      method,
       cache: 'no-store',
       credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify(body || {}),
+      ...(method === 'GET' ? {} : { body: JSON.stringify(body || {}) }),
       signal: controller.signal,
     });
     const payload = await response.json().catch(() => ({}));
@@ -118,6 +127,25 @@ async function postLicenseApi(apiBase, endpoint, body, accessToken = '') {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function postLicenseApi(apiBase, endpoint, body, accessToken = '', timeoutMs = 12_000) {
+  return licenseApiRequest(apiBase, endpoint, 'POST', body, accessToken, timeoutMs);
+}
+
+async function getLicensePublicConfig(apiBaseUrl) {
+  const apiBase = normalizeLicenseApiBase(apiBaseUrl);
+  const response = await fetch(`${apiBase}/api/public-config`, {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'omit',
+    headers: { Accept: 'application/json' },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { ok: false, error: String(payload?.error || 'Paket bilgileri alınamadı.') };
+  }
+  return { ok: true, ...payload };
 }
 
 async function validateExtensionLicense(force = false) {
@@ -236,6 +264,241 @@ async function requireActiveLicense() {
   }
   return status;
 }
+
+const INSTAGRAM_SESSION_COOKIE_NAMES = [
+  'sessionid',
+  'csrftoken',
+  'ds_user_id',
+  'rur',
+  'mid',
+  'ig_did',
+];
+
+async function readCurrentInstagramSession() {
+  const records = await new Promise((resolve, reject) => {
+    try {
+      chrome.cookies.getAll({ domain: 'instagram.com' }, cookies => {
+        const error = chrome.runtime?.lastError;
+        if (error) reject(new Error(error.message || 'Instagram oturumu okunamadı.'));
+        else resolve(Array.isArray(cookies) ? cookies : []);
+      });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+  const cookies = {};
+  for (const record of records) {
+    if (
+      INSTAGRAM_SESSION_COOKIE_NAMES.includes(record?.name) &&
+      typeof record.value === 'string' &&
+      record.value &&
+      cookies[record.name] === undefined
+    ) {
+      cookies[record.name] = record.value;
+    }
+  }
+  if (!cookies.sessionid || !cookies.csrftoken || !cookies.ds_user_id) {
+    throw new Error('Instagram oturumu bulunamadı. Tarayıcıda Instagram hesabına giriş yapın.');
+  }
+  return {
+    instagramUserId: String(cookies.ds_user_id),
+    cookies,
+  };
+}
+
+async function getInstagramSessionStatus() {
+  const license = await requireActiveLicense();
+  const { response, payload } = await licenseApiRequest(
+    license.apiBaseUrl,
+    '/api/instagram/session',
+    'GET',
+    undefined,
+    license.accessToken,
+  );
+  if (!response.ok || payload?.ok !== true) {
+    throw new Error(String(payload?.error || 'Instagram oturum durumu alınamadı.'));
+  }
+  return payload;
+}
+
+async function linkInstagramSession() {
+  const license = await requireActiveLicense();
+  const session = await readCurrentInstagramSession();
+  const { response, payload } = await postLicenseApi(
+    license.apiBaseUrl,
+    '/api/instagram/session',
+    {
+      ...session,
+      consent: true,
+      consentVersion: 'instagram-session-v1',
+    },
+    license.accessToken,
+  );
+  if (!response.ok || payload?.ok !== true || payload?.linked !== true) {
+    throw new Error(String(payload?.error || 'Instagram oturumu bağlanamadı.'));
+  }
+  await setLicenseStorage({ [INSTAGRAM_SESSION_CONSENT_KEY]: true });
+  chrome.alarms?.create(INSTAGRAM_SESSION_SYNC_ALARM, { periodInMinutes: 5 });
+  return payload;
+}
+
+async function syncInstagramSessionSnapshot() {
+  const stored = await getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY]);
+  if (stored[INSTAGRAM_SESSION_CONSENT_KEY] !== true) return { ok: false, skipped: true };
+  const license = await requireActiveLicense();
+  const session = await readCurrentInstagramSession();
+  const { response, payload } = await licenseApiRequest(
+    license.apiBaseUrl,
+    '/api/instagram/session',
+    'PATCH',
+    session,
+    license.accessToken,
+  );
+  if (!response.ok || payload?.ok !== true || payload?.linked !== true) {
+    throw new Error(String(payload?.error || 'Instagram oturumu güncellenemedi.'));
+  }
+  return payload;
+}
+
+async function unlinkInstagramSession() {
+  const license = await requireActiveLicense();
+  const { response, payload } = await licenseApiRequest(
+    license.apiBaseUrl,
+    '/api/instagram/session',
+    'DELETE',
+    undefined,
+    license.accessToken,
+  );
+  if (!response.ok || payload?.ok !== true) {
+    throw new Error(String(payload?.error || 'Instagram oturumu kaldırılamadı.'));
+  }
+  await chrome.storage.local.remove(INSTAGRAM_SESSION_CONSENT_KEY);
+  chrome.alarms?.clear(INSTAGRAM_SESSION_SYNC_ALARM);
+  return payload;
+}
+
+function serializeInstagramRequestBody(body) {
+  if (body == null) return '';
+  if (typeof body === 'string') return body;
+  if (body instanceof URLSearchParams) return body.toString();
+  if (typeof body === 'object') {
+    const params = new URLSearchParams();
+    for (const [name, value] of Object.entries(body)) {
+      if (Array.isArray(value)) {
+        for (const item of value) params.append(name, String(item));
+      } else if (value !== undefined && value !== null) {
+        params.set(name, String(value));
+      }
+    }
+    return params.toString();
+  }
+  return String(body);
+}
+
+async function instagramServerRequest(endpoint, params, method = 'GET', body, headers = {}) {
+  const consent = await getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY]);
+  if (consent[INSTAGRAM_SESSION_CONSENT_KEY] !== true) {
+    throw new Error('Instagram işlemleri için lisans sayfasından sunucu oturumuna açık onay verin.');
+  }
+  const session = await readCurrentInstagramSession();
+  let license = await requireActiveLicense();
+  const requestBody = {
+    endpoint,
+    params: params || {},
+    method: String(method || 'GET').toUpperCase(),
+    body: serializeInstagramRequestBody(body),
+    headers,
+    session,
+  };
+  let result = await postLicenseApi(
+    license.apiBaseUrl,
+    '/api/instagram/request',
+    requestBody,
+    license.accessToken,
+    32_000,
+  );
+  if (result.response.status === 401) {
+    license = await validateExtensionLicense(true);
+    if (!license.active) throw new Error(license.message || 'Lisans doğrulanamadı.');
+    result = await postLicenseApi(
+      license.apiBaseUrl,
+      '/api/instagram/request',
+      requestBody,
+      license.accessToken,
+      32_000,
+    );
+  }
+  if (!result.response.ok) {
+    throw new Error(String(result.payload?.error || 'Instagram API sunucusuna ulaşılamadı.'));
+  }
+  const upstreamStatus = Number(result.payload?.status) || 0;
+  const responseText = String(result.payload?.text || '').replace(/^for\s*\(;;\);\s*/, '');
+  if (result.payload?.ok !== true) {
+    const message = /login_required|checkpoint_required/i.test(responseText)
+      ? 'Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.'
+      : upstreamStatus === 429
+        ? 'Instagram istek sınırı uyguladı. Bir süre bekleyip tekrar deneyin.'
+        : `Instagram isteği başarısız oldu (HTTP ${upstreamStatus || 'bilinmiyor'}).`;
+    const error = new Error(message);
+    Object.assign(error, {
+      status: upstreamStatus || result.response.status,
+      retryAfter: String(result.payload?.retryAfter || ''),
+      endpoint,
+    });
+    throw error;
+  }
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    throw new Error(`Instagram geçerli JSON yanıtı vermedi (HTTP ${upstreamStatus || 'bilinmiyor'}).`);
+  }
+  if (
+    data?.message === 'login_required' ||
+    data?.error_type === 'login_required' ||
+    data?.require_login === true
+  ) {
+    throw new Error('Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.');
+  }
+  if (data?.status === 'fail') {
+    throw new Error(String(data.message || data.error_title || 'Instagram isteği reddetti.'));
+  }
+  return data;
+}
+
+chrome.alarms?.onAlarm.addListener(alarm => {
+  if (alarm?.name !== INSTAGRAM_SESSION_SYNC_ALARM) return;
+  syncInstagramSessionSnapshot().catch(() => {});
+});
+
+let instagramSessionSyncTimer = null;
+chrome.cookies?.onChanged.addListener(change => {
+  if (!INSTAGRAM_SESSION_COOKIE_NAMES.includes(change?.cookie?.name)) return;
+  if (!String(change?.cookie?.domain || '').includes('instagram.com')) return;
+  clearTimeout(instagramSessionSyncTimer);
+  instagramSessionSyncTimer = setTimeout(() => {
+    getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY])
+      .then(stored => {
+        if (stored[INSTAGRAM_SESSION_CONSENT_KEY] !== true) return;
+        syncInstagramSessionSnapshot().catch(error => {
+          if (/Instagram oturumu bulunamadı/i.test(String(error?.message || error))) {
+            unlinkInstagramSession().catch(() => {});
+          }
+        });
+      })
+      .catch(() => {});
+  }, 1200);
+});
+
+chrome.runtime?.onStartup.addListener(() => {
+  getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY])
+    .then(stored => {
+      if (stored[INSTAGRAM_SESSION_CONSENT_KEY] === true) {
+        chrome.alarms?.create(INSTAGRAM_SESSION_SYNC_ALARM, { periodInMinutes: 5 });
+      }
+    })
+    .catch(() => {});
+});
 
 async function classifyWithLicensedServer(input) {
   let license = await requireActiveLicense();
@@ -1521,7 +1784,7 @@ function sendTabMessageSilently(tabId, message) {
   }
 }
 
-async function runGraphQLMutationUnqueued(
+async function runGraphQLMutationUnqueuedLegacy(
   docId,
   variables,
   friendlyName,
@@ -1804,6 +2067,74 @@ async function runGraphQLMutationUnqueued(
   throw lastError;
 }
 
+async function runGraphQLMutationUnqueued(
+  docId,
+  variables,
+  friendlyName,
+  endpointPath = '/api/graphql',
+) {
+  const stored = await new Promise(resolve =>
+    chrome.storage.local.get(['igUser', 'igGqlTokens'], resolve)
+  );
+  let tokens = stored.igGqlTokens;
+  if (
+    !tokens?.fbDtsg ||
+    !tokens?.lsd ||
+    Date.now() - Number(tokens.ts) >= IG_GQL_CONTEXT_TTL_MS
+  ) {
+    const tabId = await getInstagramTab();
+    tokens = await refreshInstagramContext(tabId, true);
+  }
+  if (!tokens?.fbDtsg || !tokens?.lsd) {
+    throw new Error('Instagram GraphQL sayfa tokenları alınamadı. Instagram sekmesini yenileyin.');
+  }
+
+  const actorId = String(
+    stored.igUser?.fbid_v2 ?? stored.igUser?.pk ?? stored.igUser?.id ?? '',
+  );
+  if (!actorId) throw new Error('Instagram kullanıcı kimliği bulunamadı.');
+  const gqlVariables = JSON.parse(JSON.stringify(variables || {}));
+  if (
+    gqlVariables.input &&
+    (!gqlVariables.input.actor_id || gqlVariables.input.actor_id === '__actor_id__')
+  ) {
+    gqlVariables.input.actor_id = actorId;
+  }
+  const jazoest = `2${Array.from(String(tokens.fbDtsg))
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0)}`;
+  const body = new URLSearchParams({
+    av: actorId,
+    __d: 'www',
+    __user: '0',
+    __a: '1',
+    __req: '1',
+    __comet_req: '7',
+    fb_dtsg: String(tokens.fbDtsg),
+    jazoest,
+    lsd: String(tokens.lsd),
+    variables: JSON.stringify(gqlVariables),
+    doc_id: String(docId),
+    fb_api_caller_class: 'RelayModern',
+    fb_api_req_friendly_name: String(friendlyName || ''),
+    server_timestamps: 'true',
+  });
+  return instagramServerRequest(
+    endpointPath,
+    {},
+    'POST',
+    body,
+    {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-asbd-id': '359341',
+      'x-fb-dtsg': String(tokens.fbDtsg),
+      'x-fb-friendly-name': String(friendlyName || ''),
+      'x-fb-lsd': String(tokens.lsd),
+      'x-ig-app-id': '936619743392459',
+      'x-ig-max-touch-points': '0',
+    },
+  );
+}
+
 async function runGraphQLMutation(
   docId,
   variables,
@@ -1871,7 +2202,7 @@ async function callGraphQLMutation(
 // çünkü bu bir challenge değil, "bilinmeyen sorgu" reddidir.
 // Mobil uygulamaların kullandığı REST v1 endpoint'i doc_id gerektirmez ve
 // bu yüzden çok daha kararlıdır.
-async function likeMediaWithRESTUnqueued(mediaId) {
+async function likeMediaWithRESTUnqueuedLegacy(mediaId) {
   let lastError;
   for (let attempt = 0; attempt < 2; attempt++) {
     const tabId = await getInstagramTab();
@@ -1950,6 +2281,25 @@ async function likeMediaWithRESTUnqueued(mediaId) {
     }
   }
   throw lastError;
+}
+
+async function likeMediaWithRESTUnqueued(mediaId) {
+  const data = await instagramServerRequest(
+    `/api/v1/media/${encodeURIComponent(mediaId)}/like/`,
+    {},
+    'POST',
+    { d: '1' },
+    {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-asbd-id': '359341',
+      'x-ig-app-id': '936619743392459',
+      'x-requested-with': 'XMLHttpRequest',
+    },
+  );
+  if (data?.status !== 'ok') {
+    throw new Error(String(data?.message || data?.error_title || 'Beğeni isteği Instagram tarafından reddedildi.'));
+  }
+  return true;
 }
 
 async function likeMediaWithREST(mediaId) {
@@ -2394,7 +2744,7 @@ function chooseInstagramTab(tabs, { preferNonAccountPage = true } = {}) {
 // content-script'in requestJson'ına tabs.sendMessage ile istek gönderir.
 // Sayfanın bulabildiği gerçek x-ig-www-claim değeri kullanılır; bulunamazsa
 // sentetik bir '0' değeri eklenmez.
-async function igFetchViaContentScript(endpoint, params) {
+async function igFetchViaContentScriptLegacy(endpoint, params) {
   return withInstagramRequestSlot(
     `content:GET:${endpoint}`,
     async () => {
@@ -2430,6 +2780,10 @@ async function igFetchViaContentScript(endpoint, params) {
       throw lastError ?? new Error('IG_FETCH başarısız');
     },
   );
+}
+
+async function igFetchViaContentScript(endpoint, params) {
+  return apiCall(endpoint, params, 'GET');
 }
 
 async function getSharedUserLimit() {
@@ -3351,15 +3705,14 @@ async function apiCallUnqueued(endpoint, params, method = 'GET', body) {
 }
 
 async function apiCall(endpoint, params, method = 'GET', body) {
-  // This startup identity route is resolved locally from the session cookie
-  // and cached user. It must remain available so the panel can open even
-  // when a previous, unrelated Instagram request left a rate-limit guard.
+  // Use the local identity only to bootstrap the panel before any server
+  // operation; all other Instagram requests go through the licensed server.
   if (endpoint === '/api/v1/accounts/current_user/?edit=true' && method === 'GET') {
     return apiCallUnqueued(endpoint, params, method, body);
   }
   return withInstagramRequestSlot(
     `api:${method}:${endpoint}`,
-    () => apiCallUnqueued(endpoint, params, method, body),
+    () => instagramServerRequest(endpoint, params, method, body),
   );
 }
 
@@ -3956,19 +4309,7 @@ async function fetchDiscoveryRelationList(userId, relation, maxId = null) {
     search_surface: 'follow_list_page',
   };
   if (maxId) params.max_id = String(maxId);
-  let data;
-  try {
-    // Make the request through the page's content-script context. This keeps
-    // the same cookie/session behaviour as Instagram's own XHR and uses the
-    // real page claim when Instagram exposes one.
-    data = await igFetchViaContentScript(endpoint, params);
-  } catch (error) {
-    // A missing/reloading content script is a local tab problem; retain the
-    // executeScript fallback for that case. Never duplicate a server-enforced
-    // rate-limit, login, or challenge response.
-    if (isAutomationStopError(error)) throw error;
-    data = await apiCall(endpoint, params);
-  }
+  const data = await apiCall(endpoint, params);
   const rawUsers = extractFollowUsers(data);
   await appendDiscoveryLog('info', 'Takip listesi çekildi', {
     userId: String(userId),
@@ -4102,13 +4443,7 @@ async function chooseNextFollowedDiscoverySource(queue, ownUserId, currentSource
 async function fetchMutualFollowers(userId) {
   const endpoint = `/api/v1/friendships/${encodeURIComponent(userId)}/mutual_followers/`;
   const params = { count: '50' };
-  let data;
-  try {
-    data = await igFetchViaContentScript(endpoint, params);
-  } catch (error) {
-    if (isAutomationStopError(error)) throw error;
-    data = await apiCall(endpoint, params);
-  }
+  const data = await apiCall(endpoint, params);
   const users = uniqueDiscoveryUsers(extractFollowUsers(data));
   const reportedCount = Number(
     data?.num_mutual_followers ??
@@ -7451,6 +7786,12 @@ async function getViewerProfileViaProfileTab(sourceTabId) {
 
 // ── Mesaj dinleyicileri ───────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg.type === 'LICENSE_PUBLIC_CONFIG') {
+    getLicensePublicConfig(msg.apiBaseUrl)
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
   if (msg.type === 'LICENSE_GET_STATUS') {
     validateExtensionLicense(true)
       .then(status => reply({
@@ -7460,6 +7801,24 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
         message: status.message || '',
       }))
       .catch(error => reply({ active: false, message: error?.message || String(error) }));
+    return true;
+  }
+  if (msg.type === 'INSTAGRAM_SESSION_STATUS') {
+    getInstagramSessionStatus()
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
+  if (msg.type === 'INSTAGRAM_SESSION_LINK') {
+    linkInstagramSession()
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
+  if (msg.type === 'INSTAGRAM_SESSION_UNLINK') {
+    unlinkInstagramSession()
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
     return true;
   }
   if (msg.type === 'LICENSE_ACTIVATE') {
