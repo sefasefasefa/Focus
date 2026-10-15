@@ -56,3 +56,17 @@ mtime_ms = 1792068317259
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:7ad3ee63-7bd5-406d-8181-cd7136def4a3/3604df56-47cc-48ec-89e6-5a32f5bdbbf4/83436fa8-3e08-4cb6-9b11-b41e28aaa644"
 storage_version_token = "1792068336854285"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "i8NqpbpdmrPxjtxMPFckP"
+uri = "file://generated-artifacts/takipci-paneli-extension.zip"
+type = "unspecified"
+title = "Güncel Takipçi Paneli eklentisi (ZIP)"
+description = "Popup giriş, hesap, abonelikler ve parola sıfırlama arayüzü eklenmiş eklenti paketi. Lisans API sunucusu bu pakete dahil değildir."
+logical_id = "6f19c4c1-d805-4ba7-8c09-1e7c299a78af"
+content_hash = "sha256:b77536c72642cc2dcf0e6d145bbe6d48daf9045a60ec5fafaf06ffd7e57b2300"
+size = 422162
+mtime_ms = 1792071554304
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:b30de9ce-e777-43c2-a174-5e1f21317677/6f19c4c1-d805-4ba7-8c09-1e7c299a78af/dc44bc15-8521-4fb2-8d8a-a5095bd3a940"
+storage_version_token = "1792071568648411"
+content_type = "application/octet-stream"
