@@ -9228,19 +9228,28 @@ const LICENSE_REQUIRED_EXTENSION_MESSAGES = new Set([
   'IG_DISCOVERY_SET',
   'IG_FOLLOW_LIST',
   'IG_GQL_MUTATION',
+  'IG_GRAPHQL_REQUEST_CAPTURED',
+  'IG_PROFILE_DATA',
   'IG_RATE_LIMIT_RESET_LOCAL',
   'IG_SESSION_PROBE',
+  'IG_USER_DATA',
   'REFRESH_USER_DATA',
 ]);
 
+// Only license onboarding/status and local cleanup are intentionally available
+// without an active license. All operational data, including passive page data,
+// must be accepted only after a fresh server-side license validation.
 const LICENSE_FREE_EXTENSION_MESSAGES = new Set([
   'LICENSE_PUBLIC_CONFIG',
   'LICENSE_GET_STATUS',
   'LICENSE_ACTIVATE',
+  'CLEAR_EXTENSION_DATA',
+]);
+
+const LICENSED_FIRE_AND_FORGET_MESSAGES = new Set([
   'IG_GRAPHQL_REQUEST_CAPTURED',
   'IG_PROFILE_DATA',
   'IG_USER_DATA',
-  'CLEAR_EXTENSION_DATA',
 ]);
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
@@ -9263,7 +9272,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         return;
       }
       const handled = dispatchExtensionMessage(msg, sender, reply);
-      if (!handled) reply({ ok: false, error: 'İşlem tanınmadı.' });
+      if (!handled) {
+        reply(LICENSED_FIRE_AND_FORGET_MESSAGES.has(type)
+          ? { ok: true }
+          : { ok: false, error: 'İşlem tanınmadı.' });
+      }
     })
     .catch(error => reply({
       ok: false,

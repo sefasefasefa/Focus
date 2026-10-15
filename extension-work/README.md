@@ -1,5 +1,13 @@
 # Takipçi Paneli
 
+## 1.0.150 Tüm uzantı işlemlerinde lisans doğrulaması
+
+- Instagram sayfasından alınan profil, kullanıcı ve GraphQL işlem bilgileri
+  dahil, uzantının operasyonel mesajları her seferinde lisans sunucusunda
+  doğrulanır; lisans etkin değilse veya süresi dolmuşsa işlenmez.
+- Yalnızca lisans kurulumu/durumu, herkese açık paket bilgisi ve yerel çıkış
+  işlemleri lisans doğrulamasından muaftır.
+
 ## 1.0.149 Sunucu üzerinden Instagram işlemleri ve oturum eşitleme
 
 - Takipçi/takip listesi, takip isteği ve beğeni API istekleri artık lisans

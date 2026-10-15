@@ -1,2 +1,2 @@
 - [Dynamic Instagram targets](instagram-post-targets.md) — the post target changes; never hardcode one account into retrieval.
-- [Self-hosted credentials](self-hosted-credentials.md) — provider, license, and payment secrets stay on the owner's API server; distribute the browser extension separately.
+- [Self-hosted credentials and licensing](self-hosted-credentials.md) — keep provider/payment secrets server-side and gate every extension operation with an expiring, server-validated license token.
