@@ -10,9 +10,8 @@ The current `kur.bat` installs an unpacked folder. Chrome cannot silently
 convert those installations to a Web Store installation. Existing users must
 remove the unpacked copy and install the store listing once. Their local
 extension data may not carry over to the store-installed copy; tell users to
-export or save anything they need before switching. Native companion
-installations may also need to be registered again with the Web Store extension
-ID. After this migration, Chrome fetches approved releases automatically.
+export or save anything they need before switching. After this migration,
+Chrome fetches approved releases automatically.
 
 The initial store listing, privacy disclosures, and first submission must be
 completed in the Chrome Web Store Developer Dashboard. Once the item is
@@ -35,8 +34,8 @@ pnpm run extension:package
 
 The archive is written to `generated-artifacts/extension-releases/`. The
 packager substitutes the production API origin into the archive's `env.js`;
-the development source remains unchanged. It excludes the native companion,
-local metadata, documentation, and key/environment files.
+the development source remains unchanged. It excludes local metadata,
+documentation, and key/environment files.
 
 ## Automate later uploads
 

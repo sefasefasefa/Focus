@@ -8,12 +8,10 @@ const PURCHASE_CODE_RESEND_WAIT_MS = 60 * 1000;
 const PURCHASE_CODE_MAX_ATTEMPTS = 5;
 const FREE_TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MAC_ADDRESS_PATTERN = /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/;
 
 export function createAccountHandlers({
   db,
   plans,
-  trialDeviceLimit = 2,
   tokenTtlMs,
   refreshTtlMs,
   writeJson,
@@ -35,27 +33,7 @@ export function createAccountHandlers({
   }
 
   function validDeviceId(deviceId) {
-    return /^rdn1_[a-f0-9]{64}$/.test(deviceId);
-  }
-
-  function parseMacAddresses(value) {
-    if (!Array.isArray(value) || value.length > 64) return null;
-    const addresses = value.map(address =>
-      typeof address === "string" ? address.trim().toLowerCase() : "",
-    );
-    if (addresses.some(address => {
-      if (!MAC_ADDRESS_PATTERN.test(address)) return true;
-      if (address === "00:00:00:00:00:00") return true;
-      const firstOctet = Number.parseInt(address.slice(0, 2), 16);
-      return (firstOctet & 0x03) !== 0;
-    })) return null;
-    return [...new Set(addresses)].sort();
-  }
-
-  function hashMacAddresses(addresses) {
-    return addresses.map(address =>
-      hmacHex(process.env.LICENSE_DATA_SECRET, `license-mac-history-v1:${address}`),
-    ).sort();
+    return /^[a-zA-Z0-9_-]{16,128}$/.test(deviceId);
   }
 
   function passwordDigest(password, salt) {
@@ -79,34 +57,6 @@ export function createAccountHandlers({
         AND (expires_at IS NULL OR expires_at > ?)
       ORDER BY paid_at DESC LIMIT 1
     `).get(emailHash, now);
-  }
-
-  function hasLicensedDevice(deviceId, macHashes = []) {
-    if (db.prepare(
-      "SELECT 1 FROM license_device_history WHERE device_id = ?",
-    ).get(deviceId)) return true;
-    return macHashes.some(macHash => Boolean(db.prepare(
-      "SELECT 1 FROM license_mac_history WHERE mac_hash = ?",
-    ).get(macHash)));
-  }
-
-  function rememberLicensedDevice(deviceId, macHashes = [], firstSeenAt = Date.now()) {
-    db.prepare(`
-      INSERT OR IGNORE INTO license_device_history (device_id, first_seen_at)
-      VALUES (?, ?)
-    `).run(deviceId, firstSeenAt);
-    const rememberMac = db.prepare(`
-      INSERT OR IGNORE INTO license_mac_history (mac_hash, first_seen_at)
-      VALUES (?, ?)
-    `);
-    for (const macHash of macHashes) rememberMac.run(macHash, firstSeenAt);
-  }
-
-  function blockedTrialDeviceResponse(response) {
-    return writeJson(response, 409, {
-      ok: false,
-      error: "Bu cihazda daha önce lisans kullanılmış. Yeni ücretsiz deneme açılamaz; mevcut hesabınla giriş yap veya aylık satın al.",
-    });
   }
 
   function smtpSettings() {
@@ -171,34 +121,21 @@ export function createAccountHandlers({
     const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
     const password = typeof input?.password === "string" ? input.password : "";
     const deviceId = String(input?.deviceId || "").trim();
-    const macAddresses = parseMacAddresses(input?.macAddresses);
     if (!validEmail(email)) {
       return writeJson(response, 400, { ok: false, error: "Geçerli bir e-posta adresi girin." });
     }
     if (purpose === "registration" && !validPassword(password)) {
       return writeJson(response, 400, { ok: false, error: "Parola en az 8 karakter olmalı." });
     }
-    if (
-      (purpose === "registration" || purpose === "license-activation") &&
-      (!validDeviceId(deviceId) || macAddresses === null)
-    ) {
-      return writeJson(response, 400, { ok: false, error: "Cihaz bilgisi geçersiz." });
+    if (purpose === "license-activation" && !validDeviceId(deviceId)) {
+      return writeJson(response, 400, { ok: false, error: "Lisans oturumu geçersiz." });
     }
 
-    const macHashes = hashMacAddresses(macAddresses || []);
     const emailHash = emailDigest(email);
     const existingAccount = purpose === "registration"
       ? db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)
       : null;
     const activePaidOrder = purpose === "registration" ? findActivePaidOrder(emailHash) : null;
-    if (
-      purpose === "registration" &&
-      !existingAccount &&
-      !activePaidOrder &&
-      hasLicensedDevice(deviceId, macHashes)
-    ) {
-      return blockedTrialDeviceResponse(response);
-    }
     const hasActivationLicense = purpose !== "license-activation" || Boolean(findActiveOrder(emailHash));
     if (existingAccount || !hasActivationLicense) return genericVerificationResponse(response, purpose);
 
@@ -217,12 +154,11 @@ export function createAccountHandlers({
     const codeHash = codeDigest(emailHash, purpose, code);
     db.prepare(`
       INSERT INTO purchase_email_verifications
-        (email_hash, purpose, code_hash, device_id, mac_hashes, password_salt, password_hash, expires_at, attempts, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+        (email_hash, purpose, code_hash, device_id, password_salt, password_hash, expires_at, attempts, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
       ON CONFLICT(email_hash, purpose) DO UPDATE SET
         code_hash = excluded.code_hash,
         device_id = excluded.device_id,
-        mac_hashes = excluded.mac_hashes,
         password_salt = excluded.password_salt,
         password_hash = excluded.password_hash,
         expires_at = excluded.expires_at,
@@ -232,8 +168,7 @@ export function createAccountHandlers({
       emailHash,
       purpose,
       codeHash,
-      purpose === "registration" || purpose === "license-activation" ? deviceId : null,
-      purpose === "registration" || purpose === "license-activation" ? JSON.stringify(macHashes) : null,
+      purpose === "license-activation" ? deviceId : null,
       salt,
       passwordHash,
       now + PURCHASE_CODE_TTL_MS,
@@ -255,7 +190,7 @@ export function createAccountHandlers({
 
   function checkedPurchaseVerification(emailHash, purpose, code) {
     const pending = db.prepare(`
-      SELECT code_hash, device_id, mac_hashes, password_salt, password_hash, expires_at, attempts
+      SELECT code_hash, device_id, password_salt, password_hash, expires_at, attempts
       FROM purchase_email_verifications WHERE email_hash = ? AND purpose = ?
     `).get(emailHash, purpose);
     if (!pending) return null;
@@ -300,20 +235,11 @@ export function createAccountHandlers({
     });
   }
 
-  function issueLicense(order, deviceId, macHashes = []) {
+  function issueLicense(order, deviceId) {
     const existing = db.prepare(`
       SELECT device_id FROM license_devices WHERE order_id = ? AND device_id = ?
     `).get(order.order_id, deviceId);
     if (!existing) {
-      const count = db.prepare(`
-        SELECT COUNT(*) AS total FROM license_devices WHERE order_id = ?
-      `).get(order.order_id);
-      if (
-        order.payment_status !== "paid" &&
-        Number(count.total) >= Number(order.device_limit)
-      ) {
-        throw Object.assign(new Error("Bu lisans için cihaz sınırına ulaşıldı."), { status: 409 });
-      }
       db.prepare(`
         INSERT INTO license_devices (order_id, device_id, first_seen_at, last_seen_at)
         VALUES (?, ?, ?, ?)
@@ -323,7 +249,6 @@ export function createAccountHandlers({
         UPDATE license_devices SET last_seen_at = ? WHERE order_id = ? AND device_id = ?
       `).run(Date.now(), order.order_id, deviceId);
     }
-    rememberLicensedDevice(deviceId, macHashes);
 
     const refreshToken = randomBytes(48).toString("base64url");
     db.prepare(`
@@ -362,7 +287,7 @@ export function createAccountHandlers({
     if (!validDeviceId(session.device_id)) {
       db.prepare("DELETE FROM account_sessions WHERE token_hash = ?").run(tokenHash);
       throw Object.assign(
-        new Error("Cihaz koruması güncellendi. Yardımcı uygulamayı kurup e-posta ve parolanla yeniden giriş yap."),
+        new Error("Hesap oturumu geçersiz; e-posta ve parolanla yeniden giriş yap."),
         { status: 401 },
       );
     }
@@ -381,29 +306,17 @@ export function createAccountHandlers({
     const input = await readJson(request, 16 * 1024);
     const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
     const code = String(input?.code || "").trim();
-    const deviceId = String(input?.deviceId || "").trim();
-    const macAddresses = parseMacAddresses(input?.macAddresses);
-    if (
-      !validEmail(email) ||
-      !/^\d{6}$/.test(code) ||
-      !validDeviceId(deviceId) ||
-      macAddresses === null
-    ) {
-      return writeJson(response, 400, { ok: false, error: "E-posta, doğrulama kodu veya cihaz bilgisi geçersiz." });
+    if (!validEmail(email) || !/^\d{6}$/.test(code)) {
+      return writeJson(response, 400, { ok: false, error: "E-posta veya doğrulama kodu geçersiz." });
     }
-    const macHashes = hashMacAddresses(macAddresses);
 
     db.exec("BEGIN IMMEDIATE");
     try {
       const emailHash = emailDigest(email);
       const pending = checkedPurchaseVerification(emailHash, "registration", code);
-      if (!pending || !validDeviceId(pending.device_id)) {
+      if (!pending) {
         db.exec("COMMIT");
         return writeJson(response, 401, { ok: false, error: "Kod yanlış, süresi dolmuş veya kullanılmış. Yeni kod isteyip tekrar deneyin." });
-      }
-      if (pending.device_id !== deviceId || pending.mac_hashes !== JSON.stringify(macHashes)) {
-        db.exec("COMMIT");
-        return writeJson(response, 409, { ok: false, error: "Doğrulamayı hesabı açma isteğini başlattığın aynı tarayıcı profiliyle tamamla." });
       }
       if (db.prepare("SELECT 1 FROM account_users WHERE email_hash = ?").get(emailHash)) {
         db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
@@ -414,30 +327,22 @@ export function createAccountHandlers({
 
       const now = Date.now();
       const activePaidOrder = findActivePaidOrder(emailHash, now);
-      if (!activePaidOrder && hasLicensedDevice(deviceId, macHashes)) {
-        db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
-          .run(emailHash);
-        db.exec("COMMIT");
-        return blockedTrialDeviceResponse(response);
-      }
       if (!activePaidOrder) {
         db.prepare(`
           INSERT OR IGNORE INTO shopier_orders
             (order_id, product_id, payment_status, email_hash, paid_at, expires_at, revoked_at, device_limit)
-          VALUES (?, 'free-trial', 'trial', ?, ?, ?, NULL, ?)
+          VALUES (?, 'free-trial', 'trial', ?, ?, ?, NULL, 0)
         `).run(
           `trial:${emailHash}`,
           emailHash,
           now,
           now + FREE_TRIAL_DAYS * DAY_MS,
-          trialDeviceLimit,
         );
       }
       db.prepare(`
         INSERT INTO account_users (email_hash, password_salt, password_hash, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
       `).run(emailHash, pending.password_salt, pending.password_hash, now, now);
-      rememberLicensedDevice(deviceId, macHashes, now);
       db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'registration'")
         .run(emailHash);
       db.exec("COMMIT");
@@ -461,28 +366,21 @@ export function createAccountHandlers({
     const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
     const code = String(input?.code || "").trim();
     const deviceId = String(input?.deviceId || "").trim();
-    const macAddresses = parseMacAddresses(input?.macAddresses);
     if (
       !validEmail(email) ||
       !/^\d{6}$/.test(code) ||
-      !validDeviceId(deviceId) ||
-      macAddresses === null
+      !validDeviceId(deviceId)
     ) {
-      return writeJson(response, 400, { ok: false, error: "E-posta, doğrulama kodu veya cihaz bilgisi geçersiz." });
+      return writeJson(response, 400, { ok: false, error: "E-posta, doğrulama kodu veya oturum bilgisi geçersiz." });
     }
-    const macHashes = hashMacAddresses(macAddresses);
 
     db.exec("BEGIN IMMEDIATE");
     try {
       const emailHash = emailDigest(email);
       const pending = checkedPurchaseVerification(emailHash, "license-activation", code);
-      if (
-        !pending ||
-        pending.device_id !== deviceId ||
-        pending.mac_hashes !== JSON.stringify(macHashes)
-      ) {
+      if (!pending || pending.device_id !== deviceId) {
         db.exec("COMMIT");
-        return writeJson(response, 401, { ok: false, error: "Kod yanlış, süresi dolmuş veya bu cihaz için istenmemiş." });
+        return writeJson(response, 401, { ok: false, error: "Kod yanlış, süresi dolmuş veya bu oturum için istenmemiş." });
       }
       const order = findActiveOrder(emailHash);
       if (!order) {
@@ -492,7 +390,7 @@ export function createAccountHandlers({
         return writeJson(response, 401, { ok: false, error: "Bu e-posta için etkin bir satın alma bulunamadı." });
       }
 
-      const license = issueLicense(order, deviceId, macHashes);
+      const license = issueLicense(order, deviceId);
       db.prepare("DELETE FROM purchase_email_verifications WHERE email_hash = ? AND purpose = 'license-activation'")
         .run(emailHash);
       db.exec("COMMIT");
@@ -512,16 +410,13 @@ export function createAccountHandlers({
     const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
     const password = typeof input?.password === "string" ? input.password : "";
     const deviceId = String(input?.deviceId || "").trim();
-    const macAddresses = parseMacAddresses(input?.macAddresses);
     if (
       !validEmail(email) ||
       password.length > 256 ||
-      !validDeviceId(deviceId) ||
-      macAddresses === null
+      !validDeviceId(deviceId)
     ) {
-      return writeJson(response, 400, { ok: false, error: "E-posta, parola veya cihaz bilgisi geçersiz." });
+      return writeJson(response, 400, { ok: false, error: "E-posta, parola veya oturum bilgisi geçersiz." });
     }
-    const macHashes = hashMacAddresses(macAddresses);
 
     const emailHash = emailDigest(email);
     const account = db.prepare(`
@@ -534,14 +429,7 @@ export function createAccountHandlers({
     }
 
     const activeOrder = findActiveOrder(emailHash);
-    const license = activeOrder ? issueLicense(activeOrder, deviceId, macHashes) : null;
-    if (!activeOrder && db.prepare(`
-      SELECT 1 FROM shopier_orders
-      WHERE email_hash = ? AND payment_status IN ('paid', 'trial')
-      LIMIT 1
-    `).get(emailHash)) {
-      rememberLicensedDevice(deviceId, macHashes);
-    }
+    const license = activeOrder ? issueLicense(activeOrder, deviceId) : null;
 
     const sessionToken = randomBytes(48).toString("base64url");
     const sessionExpiresAt = Date.now() + ACCOUNT_SESSION_TTL_MS;
@@ -580,21 +468,9 @@ export function createAccountHandlers({
   async function refreshAccountLicense(request, response) {
     requireConfiguredLicenseSecrets();
     const session = authenticateAccount(request);
-    const input = await readJson(request, 16 * 1024);
-    const macAddresses = parseMacAddresses(input?.macAddresses);
-    if (macAddresses === null) {
-      return writeJson(response, 400, { ok: false, error: "Cihaz bilgisi geçersiz." });
-    }
-    const macHashes = hashMacAddresses(macAddresses);
+    await readJson(request, 16 * 1024);
     const order = findActiveOrder(session.email_hash);
-    const license = order ? issueLicense(order, session.device_id, macHashes) : null;
-    if (!order && db.prepare(`
-      SELECT 1 FROM shopier_orders
-      WHERE email_hash = ? AND payment_status IN ('paid', 'trial')
-      LIMIT 1
-    `).get(session.email_hash)) {
-      rememberLicensedDevice(session.device_id, macHashes);
-    }
+    const license = order ? issueLicense(order, session.device_id) : null;
     return writeJson(response, 200, {
       ok: true,
       license,

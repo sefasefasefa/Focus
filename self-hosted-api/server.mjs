@@ -22,10 +22,6 @@ const REFRESH_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 // Validate public configuration before accepting payment notifications.
 const PLANS = licensePlans();
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
-const DEFAULT_MAX_DEVICES = Math.max(
-  1,
-  Math.min(10, Number.parseInt(process.env.LICENSE_MAX_DEVICES_DEFAULT || "2", 10) || 2),
-);
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
@@ -95,7 +91,6 @@ db.exec(`
     purpose TEXT NOT NULL,
     code_hash TEXT NOT NULL,
     device_id TEXT,
-    mac_hashes TEXT,
     password_salt TEXT,
     password_hash TEXT,
     expires_at INTEGER NOT NULL,
@@ -103,28 +98,18 @@ db.exec(`
     created_at INTEGER NOT NULL,
     PRIMARY KEY (email_hash, purpose)
   );
-  CREATE TABLE IF NOT EXISTS license_device_history (
-    device_id TEXT PRIMARY KEY,
-    first_seen_at INTEGER NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS license_mac_history (
-    mac_hash TEXT PRIMARY KEY,
-    first_seen_at INTEGER NOT NULL
-  );
-`);
-db.exec(`
-  INSERT OR IGNORE INTO license_device_history (device_id, first_seen_at)
-  SELECT device_id, MIN(first_seen_at)
-  FROM license_devices
-  GROUP BY device_id
 `);
 const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
 if (!deviceColumns.includes("refresh_hash")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_hash TEXT");
 if (!deviceColumns.includes("refresh_until")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_until INTEGER");
 const verificationColumns = db.prepare("PRAGMA table_info(purchase_email_verifications)").all().map(column => column.name);
-if (!verificationColumns.includes("mac_hashes")) {
-  db.exec("ALTER TABLE purchase_email_verifications ADD COLUMN mac_hashes TEXT");
+if (verificationColumns.includes("mac_hashes")) {
+  db.exec("ALTER TABLE purchase_email_verifications DROP COLUMN mac_hashes");
 }
+// Legacy trial-history data is no longer used. Removing it does not affect
+// account, license, or Instagram sessions stored in their separate tables.
+db.exec("DROP TABLE IF EXISTS license_device_history");
+db.exec("DROP TABLE IF EXISTS license_mac_history");
 
 const rateLimits = new Map();
 
@@ -201,8 +186,8 @@ function secureTextEqual(left, right) {
 }
 
 function makeAccessToken(orderId, deviceId) {
-  if (!isStableDeviceId(deviceId)) {
-    throw new Error("A native device identifier is required.");
+  if (!isValidSessionDeviceId(deviceId)) {
+    throw new Error("A valid session identifier is required.");
   }
   const secret = String(process.env.LICENSE_SIGNING_SECRET || "");
   if (secret.length < 32) throw new Error("LICENSE_SIGNING_SECRET is not configured.");
@@ -217,8 +202,8 @@ function makeAccessToken(orderId, deviceId) {
   return `${encoded}.${signature}`;
 }
 
-function isStableDeviceId(value) {
-  return /^rdn1_[a-f0-9]{64}$/.test(String(value || ""));
+function isValidSessionDeviceId(value) {
+  return /^[a-zA-Z0-9_-]{16,128}$/.test(String(value || ""));
 }
 
 function decodeAccessToken(value) {
@@ -232,7 +217,7 @@ function decodeAccessToken(value) {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     if (
       typeof payload.orderId !== "string" ||
-      !isStableDeviceId(payload.deviceId) ||
+      !isValidSessionDeviceId(payload.deviceId) ||
       !Number.isFinite(payload.exp) ||
       payload.exp <= Date.now()
     ) return null;
@@ -1050,7 +1035,6 @@ async function handleRequest(request, response) {
 const accountHandlers = createAccountHandlers({
   db,
   plans: PLANS,
-  trialDeviceLimit: DEFAULT_MAX_DEVICES,
   tokenTtlMs: TOKEN_TTL_MS,
   refreshTtlMs: REFRESH_TTL_MS,
   writeJson,

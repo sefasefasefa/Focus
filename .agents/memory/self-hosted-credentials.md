@@ -25,11 +25,11 @@ Each email account receives one 7-day free trial after email verification. After
 
 **How to apply:** Start the trial when verified signup creates the account, enforce expiry server-side on every protected operation, and show only a valid 30-day checkout option after expiry.
 
-Do not issue another free trial to a device with prior license history, even if someone registers with a different email. Track the OS device ID and HMACs of available globally administered unicast MAC addresses; if no MAC is available, fall back to the OS ID. Never store raw MAC addresses. Existing-account login and active paid access must continue to work.
+The 7-day trial is tied only to a verified email address. Do not read, send, or store MAC addresses, and do not use hardware/device history or device counts to control trial eligibility. Preserve existing account, license, and Instagram sessions while removing legacy MAC and trial-history data.
 
-**Why:** The user wants a computer whose license has expired to be unable to create another account and reuse the free trial, and explicitly asked to check its MAC address too.
+**Why:** The user explicitly asked to remove all MAC checks and warnings, chose email-only trial eligibility, and asked to preserve current sessions.
 
-**How to apply:** Keep OS-device and MAC histories server-side beyond logout or license deletion, and check them at both registration request and verification. Collect MACs through the native companion only after consent, HMAC them with a stable server secret, and retain OS-ID fallback when no stable MAC can be read. This is best-effort identification, not hardware attestation; MACs can change or be spoofed.
+**How to apply:** Start one 7-day trial after verifying an email. Remove native hardware-identity collection, MAC consent, device-history checks, and trial device caps. Purge legacy MAC/trial-history records without clearing account sessions, active license-device records, or Instagram sessions; retain existing session IDs and use random per-install IDs for new sessions.
 
 Account access uses a normal email-and-password login; purchases happen on a separate monthly checkout page. The buyer must use the account email so the signed payment webhook can grant the paid entitlement to that account. After payment, refresh the account entitlement instead of asking for a purchase email code or order number.
 
@@ -37,8 +37,8 @@ Account access uses a normal email-and-password login; purchases happen on a sep
 
 **How to apply:** Keep login and registration in the account flow, keep Shopier checkout separate, match paid orders to the verified account email, and refresh the device license from the authenticated account session after webhook confirmation.
 
-Paid monthly access unlocks all licensed extension operations without a device-count cap; the 30-day subscription term and Instagram/platform request limits still apply.
+Paid monthly access unlocks all licensed extension operations without a device-count cap; the 30-day subscription term and Instagram/platform request limits still apply. Free trials also have no device-count cap.
 
-**Why:** The user wants usage limits removed after a successful monthly purchase.
+**Why:** The user wants no device-based controls and trial eligibility based only on verified email.
 
-**How to apply:** Enforce the trial device cap only for trial entitlements. Continue checking subscription expiry and upstream/platform safety limits for paid accounts.
+**How to apply:** Do not enforce device-count limits for trial or paid access. Continue checking trial/subscription expiry and upstream/platform safety limits.

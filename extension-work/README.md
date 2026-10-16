@@ -1,24 +1,17 @@
 # Takipçi Paneli
 
-## 1.0.157 MAC adresiyle ek deneme koruması
+## 1.0.158 E-posta doğrulamalı deneme
 
-- Cihaz yardımcı uygulaması, işletim sistemi kimliğine ek olarak kalıcı olduğu düşünülen ağ kartı MAC adreslerini okur. Rastgeleleştirilmiş ve yerel olarak atanmış adresler kullanılmaz.
-- MAC adresleri lisans sunucusuna HTTPS üzerinden gönderilir; sunucu yalnızca gizli anahtarla oluşturulan HMAC özetlerini saklar. MAC okunamazsa mevcut işletim sistemi kimliği denetimi sürer.
-- Bu sürüm için native companion 1.1.0 veya üzeri gereklidir; yardımcı uygulama güncellenmeden giriş ve kayıt yapılamaz.
-- MAC adresleri değiştirilebilir veya taklit edilebilir; bu yöntem donanım doğrulaması ya da aşılamaz bir kilit değildir.
-
-## 1.0.155 Cihazda deneme hakkını koruma
-
-- Ücretsiz deneme, sunucuda uzantının kalıcı cihaz kimliğiyle eşleştirilir; aynı tarayıcı profiliyle yeni e-posta hesabı açıp ikinci deneme başlatmak engellenir.
-- Lisans/deneme daha önce kullanılmışsa mevcut hesapla giriş yapılmalı veya aylık satın alma yapılmalıdır.
-- Bu kimlik fiziksel donanım kimliği değildir. Uzantı verilerini silmek ya da uzantıyı yeniden kurmak yeni kimlik üretebilir.
+- Kayıt için yalnızca e-posta doğrulaması ve parola gerekir. Doğrulanan her e-posta için 7 günlük deneme başlar.
+- Deneme uygunluğu cihaz kimliğine veya MAC adresine bağlanmaz; MAC adresi okunmaz, gönderilmez veya saklanmaz.
+- Kayıtlı mevcut oturumlar korunur. Oturumları sürdürmek için uzantı içinde rastgele bir oturum kimliği kullanılır; donanım kimliği okunmaz.
 
 ## 1.0.154 E-posta/parola hesabı ve ayrı aylık satın alma sayfası
 
 - Giriş ve ücretsiz hesap oluşturma e-posta/parola ile yapılır; satın alma sayfası bu hesaptan ayrıdır.
 - Shopier ödemesinde hesaba kayıtlı aynı e-posta kullanılmalıdır. Doğrulanmış ödeme, webhook üzerinden hesaba bağlanır; satın alma e-postası veya kodla ayrıca lisans etkinleştirilmez.
 - Ödeme sonrası “Satın alımı kontrol et” hesabın güncel aylık lisansını alır ve deneme erişimini ücretli erişimle değiştirir.
-- Ücretli aylık erişim lisanslı özellikleri ve cihaz kullanımını açar; aylık süresi ve Instagram'ın kendi istek sınırları devam eder.
+- Ücretli aylık erişim lisanslı özellikleri açar; aylık süresi ve Instagram'ın kendi istek sınırları devam eder.
 
 - Herkes e-posta doğrulamasıyla ücretsiz hesap açabilir; satın alma e-postası veya sipariş numarası gerekmez.
 - E-posta doğrulandıktan sonra 7 günlük deneme otomatik başlar ve kullanıcı doğrudan oturum açar.

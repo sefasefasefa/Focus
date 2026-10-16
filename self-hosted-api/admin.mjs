@@ -44,6 +44,7 @@ if (command === "list") {
     paid_at: new Date(Number(row.paid_at)).toISOString(),
     expires_at: row.expires_at === null ? "lifetime" : new Date(Number(row.expires_at)).toISOString(),
     revoked_at: row.revoked_at ? new Date(Number(row.revoked_at)).toISOString() : "",
+    device_limit: "unlimited",
   })));
 } else if (command === "revoke" && orderId) {
   const result = db.prepare(`
