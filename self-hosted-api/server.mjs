@@ -95,6 +95,7 @@ db.exec(`
     purpose TEXT NOT NULL,
     code_hash TEXT NOT NULL,
     device_id TEXT,
+    mac_hashes TEXT,
     password_salt TEXT,
     password_hash TEXT,
     expires_at INTEGER NOT NULL,
@@ -104,6 +105,10 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS license_device_history (
     device_id TEXT PRIMARY KEY,
+    first_seen_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS license_mac_history (
+    mac_hash TEXT PRIMARY KEY,
     first_seen_at INTEGER NOT NULL
   );
 `);
@@ -116,6 +121,10 @@ db.exec(`
 const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
 if (!deviceColumns.includes("refresh_hash")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_hash TEXT");
 if (!deviceColumns.includes("refresh_until")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_until INTEGER");
+const verificationColumns = db.prepare("PRAGMA table_info(purchase_email_verifications)").all().map(column => column.name);
+if (!verificationColumns.includes("mac_hashes")) {
+  db.exec("ALTER TABLE purchase_email_verifications ADD COLUMN mac_hashes TEXT");
+}
 
 const rateLimits = new Map();
 

@@ -3,6 +3,10 @@
 
   const runtimeAvailable = Boolean(globalThis.chrome?.runtime?.sendMessage);
   const storageAvailable = Boolean(globalThis.chrome?.storage?.local);
+  const DEVICE_CONSENT_KEY = "tpLicenseDeviceConsent";
+  const NATIVE_HOST_ID = "com.rodon.takipci.device";
+  const STABLE_DEVICE_ID_PATTERN = /^rdn1_[a-f0-9]{64}$/;
+  const MAC_ADDRESS_PATTERN = /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/;
   const elements = {
     refreshStatus: document.getElementById("refresh-status"),
     statusPanel: document.getElementById("license-status"),
@@ -106,6 +110,45 @@
     });
   }
 
+  function readDeviceConsent() {
+    return new Promise(resolve => {
+      if (!storageAvailable) {
+        resolve(false);
+        return;
+      }
+      chrome.storage.local.get([DEVICE_CONSENT_KEY], result => {
+        resolve(result?.[DEVICE_CONSENT_KEY] === true);
+      });
+    });
+  }
+
+  function readDeviceIdentity() {
+    return new Promise((resolve, reject) => {
+      if (!chrome.runtime?.sendNativeMessage) {
+        reject(new Error("Lisansı yenilemek için cihaz koruma yardımcısı gerekli."));
+        return;
+      }
+      chrome.runtime.sendNativeMessage(NATIVE_HOST_ID, { action: "getDeviceId" }, response => {
+        const error = chrome.runtime?.lastError;
+        if (error || !response?.ok || !STABLE_DEVICE_ID_PATTERN.test(String(response.deviceId || ""))) {
+          reject(new Error("Cihaz koruma yardımcısı başlatılamadı. Kurup tarayıcıyı yeniden başlatın."));
+          return;
+        }
+        const addresses = (Array.isArray(response.macAddresses) ? response.macAddresses : [])
+          .slice(0, 64)
+          .map(address => String(address || "").trim().toLowerCase())
+          .filter(address => {
+            if (!MAC_ADDRESS_PATTERN.test(address)) return false;
+            return (Number.parseInt(address.slice(0, 2), 16) & 0x03) === 0;
+          });
+        resolve({
+          deviceId: response.deviceId,
+          macAddresses: [...new Set(addresses)].sort(),
+        });
+      });
+    });
+  }
+
   function renderAccountState() {
     const signedIn = Boolean(
       accountSession?.sessionToken &&
@@ -142,6 +185,13 @@
       return null;
     }
     const apiBaseUrl = validateApiUrl(accountSession.apiBaseUrl || licenseApiBaseUrl);
+    if (!(await readDeviceConsent())) {
+      throw new Error("Önce hesap ekranında cihaz ve MAC denetimine onay vermelisin.");
+    }
+    const deviceIdentity = await readDeviceIdentity();
+    if (deviceIdentity.deviceId !== accountSession.deviceId) {
+      throw new Error("Bu hesap oturumu başka bir cihaza ait. Bu bilgisayardan yeniden giriş yap.");
+    }
     await ensureServerPermission(apiBaseUrl, requestPermission);
     await saveUrl(apiBaseUrl);
     const response = await fetch(`${apiBaseUrl}/api/account/license/refresh`, {
@@ -150,8 +200,10 @@
       credentials: "omit",
       headers: {
         Accept: "application/json",
+        "Content-Type": "application/json",
         Authorization: `Bearer ${accountSession.sessionToken}`,
       },
+      body: JSON.stringify({ macAddresses: deviceIdentity.macAddresses }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result?.ok === false) {

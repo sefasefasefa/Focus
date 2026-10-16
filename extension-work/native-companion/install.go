@@ -196,16 +196,17 @@ func registerLinuxHost(binaryPath, chromeOrigin, edgeOrigin string) error {
 		return err
 	}
 	if chromeOrigin != "" {
-		if err := writeChromiumManifest(filepath.Join(configRoot, "google-chrome", "NativeMessagingHosts"), binaryPath, chromeOrigin); err != nil {
+		if _, err := writeChromiumManifest(filepath.Join(configRoot, "google-chrome", "NativeMessagingHosts"), binaryPath, chromeOrigin); err != nil {
 			return err
 		}
 	}
 	if edgeOrigin != "" {
-		if err := writeChromiumManifest(filepath.Join(configRoot, "microsoft-edge", "NativeMessagingHosts"), binaryPath, edgeOrigin); err != nil {
+		if _, err := writeChromiumManifest(filepath.Join(configRoot, "microsoft-edge", "NativeMessagingHosts"), binaryPath, edgeOrigin); err != nil {
 			return err
 		}
 	}
-	return writeFirefoxManifest(filepath.Join(home, ".mozilla", "native-messaging-hosts"), binaryPath)
+	_, err = writeFirefoxManifest(filepath.Join(home, ".mozilla", "native-messaging-hosts"), binaryPath)
+	return err
 }
 
 func registerMacHost(binaryPath, chromeOrigin, edgeOrigin string) error {
@@ -215,16 +216,17 @@ func registerMacHost(binaryPath, chromeOrigin, edgeOrigin string) error {
 	}
 	base := filepath.Join(home, "Library", "Application Support")
 	if chromeOrigin != "" {
-		if err := writeChromiumManifest(filepath.Join(base, "Google", "Chrome", "NativeMessagingHosts"), binaryPath, chromeOrigin); err != nil {
+		if _, err := writeChromiumManifest(filepath.Join(base, "Google", "Chrome", "NativeMessagingHosts"), binaryPath, chromeOrigin); err != nil {
 			return err
 		}
 	}
 	if edgeOrigin != "" {
-		if err := writeChromiumManifest(filepath.Join(base, "Microsoft Edge", "NativeMessagingHosts"), binaryPath, edgeOrigin); err != nil {
+		if _, err := writeChromiumManifest(filepath.Join(base, "Microsoft Edge", "NativeMessagingHosts"), binaryPath, edgeOrigin); err != nil {
 			return err
 		}
 	}
-	return writeFirefoxManifest(filepath.Join(base, "Mozilla", "NativeMessagingHosts"), binaryPath)
+	_, err = writeFirefoxManifest(filepath.Join(base, "Mozilla", "NativeMessagingHosts"), binaryPath)
+	return err
 }
 
 func registerWindowsHost(binaryPath, chromeOrigin, edgeOrigin string) error {

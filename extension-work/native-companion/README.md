@@ -1,6 +1,6 @@
 # RODON device companion
 
-This native messaging host provides a stable device ID to the browser extension so deleting or reinstalling the extension does not restart the free trial.
+This native messaging host provides a stable operating-system device ID and optional network MAC addresses to the browser extension so deleting or reinstalling the extension does not restart the free trial.
 
 ## Build
 
@@ -23,11 +23,13 @@ The installer asks for the Chrome and Edge extension IDs; press Enter to skip a 
 
 To find a Chrome or Edge extension ID, open the browser's extension details page and copy the ID shown there. The installed extension ID must match the value entered during companion installation.
 
-## Device identifier and privacy
+## Device identifiers and privacy
 
-The helper reads the operating system's stable machine identifier and hashes it locally with SHA-256. Only the prefixed hash (`rdn1_...`) is sent to the license API; the raw OS identifier is not returned to the extension or sent to the server. The server retains the hash after logout and extension removal so another email cannot restart the free trial on that OS installation.
+The helper reads the operating system's stable machine identifier and hashes it locally with SHA-256. Only the prefixed hash (`rdn1_...`) is returned to the extension for the OS identifier; the raw OS identifier is never sent to the server.
 
-This is a persistent OS-installation identifier, not a hardware-backed attestation. Reinstalling the operating system, changing the system machine identifier, or using a cloned virtual machine can produce or copy a different identifier. A determined user with administrator access can also alter or spoof local software. macOS builds are unsigned and may prompt for approval when first run.
+The helper also reports globally administered, unicast MAC addresses from available network interfaces. Locally administered addresses, often used for Wi-Fi randomization or virtual adapters, are excluded. The extension sends these MAC addresses to the API over HTTPS for comparison; the server stores only a keyed HMAC, not the raw address. If no eligible MAC is available, the OS device ID remains in use. The server retains both histories after logout and extension removal.
+
+The native companion must be version 1.1.0 or later for the MAC field. This is a best-effort identifier, not hardware-backed attestation: network adapters can be replaced, and MAC addresses can be changed or spoofed. Reinstalling the operating system or changing its machine identifier can also change the OS-based ID. A determined user with administrator access can alter local software. macOS builds are unsigned and may prompt for approval when first run.
 
 ## Supported browsers
 

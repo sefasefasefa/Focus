@@ -1,5 +1,12 @@
 # Takipçi Paneli
 
+## 1.0.157 MAC adresiyle ek deneme koruması
+
+- Cihaz yardımcı uygulaması, işletim sistemi kimliğine ek olarak kalıcı olduğu düşünülen ağ kartı MAC adreslerini okur. Rastgeleleştirilmiş ve yerel olarak atanmış adresler kullanılmaz.
+- MAC adresleri lisans sunucusuna HTTPS üzerinden gönderilir; sunucu yalnızca gizli anahtarla oluşturulan HMAC özetlerini saklar. MAC okunamazsa mevcut işletim sistemi kimliği denetimi sürer.
+- Bu sürüm için native companion 1.1.0 veya üzeri gereklidir; yardımcı uygulama güncellenmeden giriş ve kayıt yapılamaz.
+- MAC adresleri değiştirilebilir veya taklit edilebilir; bu yöntem donanım doğrulaması ya da aşılamaz bir kilit değildir.
+
 ## 1.0.155 Cihazda deneme hakkını koruma
 
 - Ücretsiz deneme, sunucuda uzantının kalıcı cihaz kimliğiyle eşleştirilir; aynı tarayıcı profiliyle yeni e-posta hesabı açıp ikinci deneme başlatmak engellenir.

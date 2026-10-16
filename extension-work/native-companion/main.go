@@ -6,18 +6,19 @@ import (
 	"os"
 )
 
-const companionVersion = "1.0.0"
+const companionVersion = "1.1.0"
 
 type nativeRequest struct {
 	Action string `json:"action"`
 }
 
 type nativeResponse struct {
-	OK        bool   `json:"ok"`
-	DeviceID  string `json:"deviceId,omitempty"`
-	Platform  string `json:"platform,omitempty"`
-	Version   string `json:"version,omitempty"`
-	Error     string `json:"error,omitempty"`
+	OK           bool     `json:"ok"`
+	DeviceID     string   `json:"deviceId,omitempty"`
+	MACAddresses []string `json:"macAddresses"`
+	Platform     string   `json:"platform,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	Error        string   `json:"error,omitempty"`
 }
 
 func main() {
@@ -55,10 +56,11 @@ func main() {
 	}
 
 	writeNativeResponse(nativeResponse{
-		OK:       true,
-		DeviceID: deviceID,
-		Platform: runtimePlatform(),
-		Version:  companionVersion,
+		OK:           true,
+		DeviceID:     deviceID,
+		MACAddresses: stableMACAddresses(),
+		Platform:     runtimePlatform(),
+		Version:      companionVersion,
 	})
 }
 

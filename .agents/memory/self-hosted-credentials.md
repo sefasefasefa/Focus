@@ -25,11 +25,11 @@ Each email account receives one 7-day free trial after email verification. After
 
 **How to apply:** Start the trial when verified signup creates the account, enforce expiry server-side on every protected operation, and show only a valid 30-day checkout option after expiry.
 
-Do not issue another free trial to a device with prior license history, even if someone registers with a different email. Existing-account login and active paid access must continue to work.
+Do not issue another free trial to a device with prior license history, even if someone registers with a different email. Track the OS device ID and HMACs of available globally administered unicast MAC addresses; if no MAC is available, fall back to the OS ID. Never store raw MAC addresses. Existing-account login and active paid access must continue to work.
 
-**Why:** The user wants a computer whose license has expired to be unable to create another account and reuse the free trial.
+**Why:** The user wants a computer whose license has expired to be unable to create another account and reuse the free trial, and explicitly asked to check its MAC address too.
 
-**How to apply:** Use the extension's persistent device ID and server-side history to block repeat trials. This is best-effort browser-profile identification, not a hardware lock; clearing extension data or reinstalling can create a new ID.
+**How to apply:** Keep OS-device and MAC histories server-side beyond logout or license deletion, and check them at both registration request and verification. Collect MACs through the native companion only after consent, HMAC them with a stable server secret, and retain OS-ID fallback when no stable MAC can be read. This is best-effort identification, not hardware attestation; MACs can change or be spoofed.
 
 Account access uses a normal email-and-password login; purchases happen on a separate monthly checkout page. The buyer must use the account email so the signed payment webhook can grant the paid entitlement to that account. After payment, refresh the account entitlement instead of asking for a purchase email code or order number.
 

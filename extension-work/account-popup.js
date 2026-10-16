@@ -8,12 +8,16 @@
   const DEVICE_ID_KEY = "tpLicenseDeviceId";
   const ACCOUNT_KEY = "tpAccountState";
   const LICENSE_KEY = "tpLicenseState";
+  const DEVICE_CONSENT_KEY = "tpLicenseDeviceConsent";
   const NATIVE_HOST_ID = "com.rodon.takipci.device";
   const STABLE_DEVICE_ID_PATTERN = /^rdn1_[a-f0-9]{64}$/;
+  const MAC_ADDRESS_PATTERN = /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/;
   const api = {
     url: "",
     deviceId: "",
     deviceIdVerified: false,
+    macAddresses: [],
+    deviceConsentAccepted: false,
     account: null,
     subscriptions: [],
     view: "login",
@@ -138,7 +142,11 @@
   }
 
   async function ensureDeviceId() {
-    if (api.deviceIdVerified && STABLE_DEVICE_ID_PATTERN.test(api.deviceId)) {
+    if (
+      api.deviceIdVerified &&
+      STABLE_DEVICE_ID_PATTERN.test(api.deviceId) &&
+      Array.isArray(api.macAddresses)
+    ) {
       return api.deviceId;
     }
     if (!chrome.runtime?.sendNativeMessage) {
@@ -149,14 +157,28 @@
         const error = chrome.runtime?.lastError;
         if (error) {
           reject(new Error("Cihaz koruma yardımcısı bulunamadı. Kurulum yönergesini uygulayıp tarayıcıyı yeniden başlatın."));
-        } else if (!response?.ok || !STABLE_DEVICE_ID_PATTERN.test(String(response.deviceId || ""))) {
+        } else if (
+          !response?.ok ||
+          !STABLE_DEVICE_ID_PATTERN.test(String(response.deviceId || ""))
+        ) {
           reject(new Error("Cihaz koruma yardımcısı geçerli bir kimlik döndürmedi."));
+        } else if (
+          !Array.isArray(response.macAddresses) ||
+          response.macAddresses.length > 64 ||
+          response.macAddresses.some(address =>
+            !MAC_ADDRESS_PATTERN.test(String(address || "").trim().toLowerCase()),
+          )
+        ) {
+          reject(new Error("MAC denetimi için cihaz koruma yardımcısını güncelleyin."));
         } else {
           resolve(response);
         }
       });
     });
     api.deviceId = result.deviceId;
+    api.macAddresses = [...new Set(
+      result.macAddresses.map(address => String(address).trim().toLowerCase()),
+    )].sort();
     api.deviceIdVerified = true;
     await storageSet({ [DEVICE_ID_KEY]: api.deviceId });
     return api.deviceId;
@@ -197,6 +219,7 @@
         <form class="account-form" id="account-login-form">
           <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="username" required></label>
           <label class="account-field" for="account-password">Parola<input class="account-input" id="account-password" name="password" type="password" autocomplete="current-password" required></label>
+          <label class="account-device-consent"><input name="deviceConsent" type="checkbox" required ${api.deviceConsentAccepted ? "checked" : ""}><span>Deneme koruması için cihaz kimliği ve varsa kalıcı ağ kartı MAC adreslerinin kontrol edilmesini kabul ediyorum. MAC adresleri lisans sunucusuna iletilir; ham MAC sunucuda saklanmaz. MAC okunamazsa cihaz kimliği denetimi sürer.</span></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Giriş yapılıyor…" : "Giriş yap"}</button>
         </form>
         <div class="account-links"><button class="account-link" type="button" data-action="forgot">Parolamı unuttum</button><button class="account-link" type="button" data-action="register">Hesap oluştur</button></div>
@@ -217,6 +240,42 @@
     renderMessage();
   }
 
+  function renderDeviceConsent() {
+    root.innerHTML = `
+      <section aria-labelledby="account-title">
+        <div class="account-heading">${iconMarkup()}<div><h2 class="account-title" id="account-title">Cihaz denetimi</h2><p class="account-subtitle">Devam etmeden önce cihaz kimliği ve MAC denetimine onay ver.</p></div></div>
+        <form class="account-form" id="account-device-consent-form">
+          <label class="account-device-consent"><input name="deviceConsent" type="checkbox" required><span>Deneme koruması için cihaz kimliği ve varsa kalıcı ağ kartı MAC adreslerinin kontrol edilmesini kabul ediyorum. MAC adresleri lisans sunucusuna iletilir; ham MAC sunucuda saklanmaz. MAC okunamazsa cihaz kimliği denetimi sürer.</span></label>
+          <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Kaydediliyor…" : "Onayla ve devam et"}</button>
+        </form>
+        <p class="account-message" data-account-message role="status"></p>
+      </section>`;
+    root.querySelector("#account-device-consent-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (api.busy) return;
+      const form = new FormData(event.currentTarget);
+      if (!form.get("deviceConsent")) {
+        setMessage("Devam etmek için cihaz denetimine onay vermelisin.", "error");
+        return;
+      }
+      api.busy = true;
+      render();
+      try {
+        api.deviceConsentAccepted = true;
+        await storageSet({ [DEVICE_CONSENT_KEY]: true });
+        api.busy = false;
+        api.view = "login";
+        clearMessage();
+        await initialize();
+      } catch (error) {
+        api.busy = false;
+        render();
+        setMessage(error.message || "Onay kaydedilemedi.", "error");
+      }
+    });
+    renderMessage();
+  }
+
   function renderRegister() {
     root.innerHTML = `
       <section aria-labelledby="account-title">
@@ -225,7 +284,7 @@
         <form class="account-form" id="account-register-form">
           <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
           <label class="account-field" for="account-password">Parola (en az 8 karakter)<input class="account-input" id="account-password" name="password" type="password" minlength="8" maxlength="256" autocomplete="new-password" required></label>
-          <label class="account-device-consent"><input name="deviceConsent" type="checkbox" required><span>Deneme hakkını korumak için bu bilgisayardan alınan cihaz kimliğinin özeti sunucuda saklanır. Uzantıyı silip yeniden kurmak denemeyi sıfırlamaz.</span></label>
+          <label class="account-device-consent"><input name="deviceConsent" type="checkbox" required ${api.deviceConsentAccepted ? "checked" : ""}><span>Deneme hakkını korumak için bu bilgisayarın cihaz kimliği ve varsa kalıcı ağ kartı MAC adreslerinin özeti sunucuda saklanır. MAC adresleri lisans sunucusuna iletilir; ham MAC sunucuda saklanmaz. MAC okunamazsa cihaz kimliği kontrolü devam eder.</span></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Hesap oluşturuluyor…" : "Hesap oluştur"}</button>
         </form>
         <p class="account-message" data-account-message role="status"></p>
@@ -330,6 +389,7 @@
       throw new Error("Sunucu geçerli bir hesap oturumu döndürmedi.");
     }
     api.url = apiBaseUrl;
+    api.deviceConsentAccepted = true;
     api.account = {
       email: result.account.email,
       sessionToken: result.sessionToken,
@@ -409,6 +469,7 @@
     else delete document.body.dataset.accountView;
     if (api.view === "home") renderHome();
     else if (api.view === "settings") renderSettings();
+    else if (api.view === "device-consent") renderDeviceConsent();
     else if (api.view === "register") renderRegister();
     else if (api.view === "register-verify") renderRegisterVerify();
     else if (api.view === "reset") renderReset();
@@ -433,6 +494,7 @@
     let apiBaseUrl;
     let permissionRequest;
     try {
+      if (!form.get("deviceConsent")) throw new Error("Cihaz kimliği ve MAC kontrolünü kabul etmelisin.");
       apiBaseUrl = getFormServerUrl();
       permissionRequest = requestServerPermission(apiBaseUrl);
     } catch (error) {
@@ -440,15 +502,17 @@
       return;
     }
     api.url = apiBaseUrl;
+    api.deviceConsentAccepted = true;
     api.busy = true;
     render();
     try {
+      await storageSet({ [DEVICE_CONSENT_KEY]: true });
       await permissionRequest;
       await storageSet({ [API_URL_KEY]: apiBaseUrl });
       const deviceId = await ensureDeviceId();
       const result = await requestJson(apiBaseUrl, "/api/account/login", {
         method: "POST",
-        body: { email, password, deviceId },
+        body: { email, password, deviceId, macAddresses: api.macAddresses },
       });
       await storeAccountLogin(result, email, apiBaseUrl, deviceId);
       api.busy = false;
@@ -474,22 +538,24 @@
     try {
       apiBaseUrl = getFormServerUrl();
       if (password.length < 8) throw new Error("Parola en az 8 karakter olmalı.");
-        if (!form.get("deviceConsent")) throw new Error("Cihaz kimliği kullanımını kabul etmelisin.");
+      if (!form.get("deviceConsent")) throw new Error("Cihaz kimliği ve MAC kontrolünü kabul etmelisin.");
       permissionRequest = requestServerPermission(apiBaseUrl);
     } catch (error) {
       setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
       return;
     }
+    api.deviceConsentAccepted = true;
     api.busy = true;
     render();
     try {
+      await storageSet({ [DEVICE_CONSENT_KEY]: true });
       await permissionRequest;
       api.url = apiBaseUrl;
       await storageSet({ [API_URL_KEY]: apiBaseUrl });
       const deviceId = await ensureDeviceId();
       await requestJson(apiBaseUrl, "/api/account/register", {
         method: "POST",
-        body: { email, password, deviceId },
+        body: { email, password, deviceId, macAddresses: api.macAddresses },
       });
       api.registerEmail = email;
       api.registerPassword = password;
@@ -529,12 +595,12 @@
       const deviceId = await ensureDeviceId();
       await requestJson(apiBaseUrl, "/api/account/register/verify", {
         method: "POST",
-        body: { email, code, deviceId },
+        body: { email, code, deviceId, macAddresses: api.macAddresses },
       });
       try {
         const result = await requestJson(apiBaseUrl, "/api/account/login", {
           method: "POST",
-          body: { email, password: api.registerPassword, deviceId },
+          body: { email, password: api.registerPassword, deviceId, macAddresses: api.macAddresses },
         });
         await storeAccountLogin(result, email, apiBaseUrl, deviceId);
         api.view = "home";
@@ -658,6 +724,7 @@
       }
       const entitlement = await requestJson(api.account.apiBaseUrl, "/api/account/license/refresh", {
         method: "POST",
+        body: { macAddresses: api.macAddresses },
         token: api.account.sessionToken,
       });
       api.subscriptions = Array.isArray(entitlement.subscriptions)
@@ -700,7 +767,13 @@
 
   async function initialize() {
     try {
-      const stored = await storageGet([API_URL_KEY, DEVICE_ID_KEY, ACCOUNT_KEY, LICENSE_KEY]);
+      const stored = await storageGet([
+        API_URL_KEY,
+        DEVICE_ID_KEY,
+        ACCOUNT_KEY,
+        LICENSE_KEY,
+        DEVICE_CONSENT_KEY,
+      ]);
       api.url = String(
         globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL ||
         stored[API_URL_KEY] ||
@@ -708,6 +781,7 @@
         "",
       ).trim();
       api.deviceId = String(stored[DEVICE_ID_KEY] || stored[LICENSE_KEY]?.deviceId || "");
+      api.deviceConsentAccepted = stored[DEVICE_CONSENT_KEY] === true;
       api.account = stored[ACCOUNT_KEY] && typeof stored[ACCOUNT_KEY] === "object"
         ? stored[ACCOUNT_KEY]
         : null;
@@ -718,6 +792,12 @@
         Number(api.account.sessionExpiresAt) > Date.now()
       ) {
         api.url = api.account.apiBaseUrl;
+        if (stored[DEVICE_CONSENT_KEY] !== true) {
+          api.busy = false;
+          api.view = "device-consent";
+          render();
+          return;
+        }
         api.busy = true;
         api.view = "login";
         render();
