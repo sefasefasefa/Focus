@@ -467,9 +467,10 @@
       await permissionRequest;
       api.url = apiBaseUrl;
       await storageSet({ [API_URL_KEY]: apiBaseUrl });
+      const deviceId = await ensureDeviceId();
       await requestJson(apiBaseUrl, "/api/account/register", {
         method: "POST",
-        body: { email, password },
+        body: { email, password, deviceId },
       });
       api.registerEmail = email;
       api.registerPassword = password;
@@ -506,11 +507,11 @@
       await permissionRequest;
       api.url = apiBaseUrl;
       const email = api.registerEmail;
+      const deviceId = await ensureDeviceId();
       await requestJson(apiBaseUrl, "/api/account/register/verify", {
         method: "POST",
-        body: { email, code },
+        body: { email, code, deviceId },
       });
-      const deviceId = await ensureDeviceId();
       try {
         const result = await requestJson(apiBaseUrl, "/api/account/login", {
           method: "POST",

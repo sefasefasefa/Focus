@@ -25,6 +25,12 @@ Each email account receives one 7-day free trial after email verification. After
 
 **How to apply:** Start the trial when verified signup creates the account, enforce expiry server-side on every protected operation, and show only a valid 30-day checkout option after expiry.
 
+Do not issue another free trial to a device with prior license history, even if someone registers with a different email. Existing-account login and active paid access must continue to work.
+
+**Why:** The user wants a computer whose license has expired to be unable to create another account and reuse the free trial.
+
+**How to apply:** Use the extension's persistent device ID and server-side history to block repeat trials. This is best-effort browser-profile identification, not a hardware lock; clearing extension data or reinstalling can create a new ID.
+
 Account access uses a normal email-and-password login; purchases happen on a separate monthly checkout page. The buyer must use the account email so the signed payment webhook can grant the paid entitlement to that account. After payment, refresh the account entitlement instead of asking for a purchase email code or order number.
 
 **Why:** The user wants ordinary account credentials, a distinct purchase page, and paid access to replace the trial restriction automatically.

@@ -1,5 +1,11 @@
 # Takipçi Paneli
 
+## 1.0.155 Cihazda deneme hakkını koruma
+
+- Ücretsiz deneme, sunucuda uzantının kalıcı cihaz kimliğiyle eşleştirilir; aynı tarayıcı profiliyle yeni e-posta hesabı açıp ikinci deneme başlatmak engellenir.
+- Lisans/deneme daha önce kullanılmışsa mevcut hesapla giriş yapılmalı veya aylık satın alma yapılmalıdır.
+- Bu kimlik fiziksel donanım kimliği değildir. Uzantı verilerini silmek ya da uzantıyı yeniden kurmak yeni kimlik üretebilir.
+
 ## 1.0.154 E-posta/parola hesabı ve ayrı aylık satın alma sayfası
 
 - Giriş ve ücretsiz hesap oluşturma e-posta/parola ile yapılır; satın alma sayfası bu hesaptan ayrıdır.

@@ -102,6 +102,16 @@ db.exec(`
     created_at INTEGER NOT NULL,
     PRIMARY KEY (email_hash, purpose)
   );
+  CREATE TABLE IF NOT EXISTS license_device_history (
+    device_id TEXT PRIMARY KEY,
+    first_seen_at INTEGER NOT NULL
+  );
+`);
+db.exec(`
+  INSERT OR IGNORE INTO license_device_history (device_id, first_seen_at)
+  SELECT device_id, MIN(first_seen_at)
+  FROM license_devices
+  GROUP BY device_id
 `);
 const deviceColumns = db.prepare("PRAGMA table_info(license_devices)").all().map(column => column.name);
 if (!deviceColumns.includes("refresh_hash")) db.exec("ALTER TABLE license_devices ADD COLUMN refresh_hash TEXT");
