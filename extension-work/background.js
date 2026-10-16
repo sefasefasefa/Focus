@@ -481,15 +481,17 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
   const responseText = String(result.payload?.text || '').replace(/^for\s*\(;;\);\s*/, '');
   if (result.payload?.ok !== true) {
     const redirectType = String(result.payload?.redirectType || '');
-    const message = redirectType === 'login' || /login_required|checkpoint_required/i.test(responseText)
-      ? 'Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.'
+    const message = redirectType === 'login'
+      ? 'Instagram isteği giriş sayfasına yönlendirdi. Aynı tarayıcı profilinde Instagram’a giriş yapın; ardından lisans merkezinde sunucudaki oturumu silip yeniden bağlayın.'
       : redirectType === 'verification'
-        ? 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayıp lisans merkezinden sunucu oturumunu yeniden bağlayın.'
-        : upstreamStatus >= 300 && upstreamStatus < 400
-          ? `Instagram isteği başka bir adrese yönlendirdi (HTTP ${upstreamStatus}). Oturum ve istek yolunu kontrol edin.`
-      : upstreamStatus === 429
-        ? 'Instagram istek sınırı uyguladı. Bir süre bekleyip tekrar deneyin.'
-        : `Instagram isteği başarısız oldu (HTTP ${upstreamStatus || 'bilinmiyor'}).`;
+        ? 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayın; ardından lisans merkezinde sunucudaki oturumu silip yeniden bağlayın.'
+        : /login_required|checkpoint_required/i.test(responseText)
+          ? 'Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.'
+          : upstreamStatus >= 300 && upstreamStatus < 400
+            ? `Instagram isteği başka bir adrese yönlendirdi (HTTP ${upstreamStatus}). Oturum ve istek yolunu kontrol edin.`
+            : upstreamStatus === 429
+              ? 'Instagram istek sınırı uyguladı. Bir süre bekleyip tekrar deneyin.'
+              : `Instagram isteği başarısız oldu (HTTP ${upstreamStatus || 'bilinmiyor'}).`;
     const error = new Error(message);
     Object.assign(error, {
       status: upstreamStatus || result.response.status,
