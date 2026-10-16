@@ -34,7 +34,7 @@ export function createAccountHandlers({
   }
 
   function validDeviceId(deviceId) {
-    return /^[a-zA-Z0-9_-]{16,128}$/.test(deviceId);
+    return /^rdn1_[a-f0-9]{64}$/.test(deviceId);
   }
 
   function passwordDigest(password, salt) {
@@ -323,6 +323,13 @@ export function createAccountHandlers({
       if (session) db.prepare("DELETE FROM account_sessions WHERE token_hash = ?").run(tokenHash);
       throw Object.assign(new Error("Hesap oturumunun süresi dolmuş; tekrar giriş yapın."), { status: 401 });
     }
+    if (!validDeviceId(session.device_id)) {
+      db.prepare("DELETE FROM account_sessions WHERE token_hash = ?").run(tokenHash);
+      throw Object.assign(
+        new Error("Cihaz koruması güncellendi. Yardımcı uygulamayı kurup e-posta ve parolanla yeniden giriş yap."),
+        { status: 401 },
+      );
+    }
     return { ...session, tokenHash };
   }
 
@@ -451,7 +458,7 @@ export function createAccountHandlers({
     const email = String(input?.email || "").trim().toLowerCase().slice(0, 320);
     const password = typeof input?.password === "string" ? input.password : "";
     const deviceId = String(input?.deviceId || "").trim();
-    if (!validEmail(email) || password.length > 256 || !/^[a-zA-Z0-9_-]{16,128}$/.test(deviceId)) {
+    if (!validEmail(email) || password.length > 256 || !validDeviceId(deviceId)) {
       return writeJson(response, 400, { ok: false, error: "E-posta, parola veya cihaz bilgisi geçersiz." });
     }
 
@@ -467,6 +474,13 @@ export function createAccountHandlers({
 
     const activeOrder = findActiveOrder(emailHash);
     const license = activeOrder ? issueLicense(activeOrder, deviceId) : null;
+    if (!activeOrder && db.prepare(`
+      SELECT 1 FROM shopier_orders
+      WHERE email_hash = ? AND payment_status IN ('paid', 'trial')
+      LIMIT 1
+    `).get(emailHash)) {
+      rememberLicensedDevice(deviceId);
+    }
 
     const sessionToken = randomBytes(48).toString("base64url");
     const sessionExpiresAt = Date.now() + ACCOUNT_SESSION_TTL_MS;

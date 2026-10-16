@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Takipçi Paneli",
-  "version": "1.0.155",
+  "version": "1.0.156",
   "description": "Takipçi Paneli — Instagram takip & otomasyon paneli · Powered by Rodon (rodon.studio). Chrome, Edge ve Firefox ile uyumlu.",
   "icons": {
     "16": "icon16.png",
@@ -52,7 +52,8 @@
     "scripting",
     "alarms",
     "declarativeNetRequest",
-    "webRequest"
+    "webRequest",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "*://*.instagram.com/*",

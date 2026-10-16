@@ -192,6 +192,9 @@ function secureTextEqual(left, right) {
 }
 
 function makeAccessToken(orderId, deviceId) {
+  if (!isStableDeviceId(deviceId)) {
+    throw new Error("A native device identifier is required.");
+  }
   const secret = String(process.env.LICENSE_SIGNING_SECRET || "");
   if (secret.length < 32) throw new Error("LICENSE_SIGNING_SECRET is not configured.");
   const now = Date.now();
@@ -205,6 +208,10 @@ function makeAccessToken(orderId, deviceId) {
   return `${encoded}.${signature}`;
 }
 
+function isStableDeviceId(value) {
+  return /^rdn1_[a-f0-9]{64}$/.test(String(value || ""));
+}
+
 function decodeAccessToken(value) {
   const secret = String(process.env.LICENSE_SIGNING_SECRET || "");
   if (secret.length < 32) return null;
@@ -216,7 +223,7 @@ function decodeAccessToken(value) {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     if (
       typeof payload.orderId !== "string" ||
-      typeof payload.deviceId !== "string" ||
+      !isStableDeviceId(payload.deviceId) ||
       !Number.isFinite(payload.exp) ||
       payload.exp <= Date.now()
     ) return null;

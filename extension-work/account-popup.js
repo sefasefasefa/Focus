@@ -8,9 +8,12 @@
   const DEVICE_ID_KEY = "tpLicenseDeviceId";
   const ACCOUNT_KEY = "tpAccountState";
   const LICENSE_KEY = "tpLicenseState";
+  const NATIVE_HOST_ID = "com.rodon.takipci.device";
+  const STABLE_DEVICE_ID_PATTERN = /^rdn1_[a-f0-9]{64}$/;
   const api = {
     url: "",
     deviceId: "",
+    deviceIdVerified: false,
     account: null,
     subscriptions: [],
     view: "login",
@@ -135,12 +138,26 @@
   }
 
   async function ensureDeviceId() {
-    if (/^[a-zA-Z0-9_-]{16,128}$/.test(api.deviceId)) return api.deviceId;
-    const stored = await storageGet([DEVICE_ID_KEY]);
-    const existing = String(stored[DEVICE_ID_KEY] || "");
-    api.deviceId = /^[a-zA-Z0-9_-]{16,128}$/.test(existing)
-      ? existing
-      : crypto.randomUUID().replace(/-/g, "");
+    if (api.deviceIdVerified && STABLE_DEVICE_ID_PATTERN.test(api.deviceId)) {
+      return api.deviceId;
+    }
+    if (!chrome.runtime?.sendNativeMessage) {
+      throw new Error("Cihaz koruma yardımcısı bu tarayıcıda kullanılamıyor.");
+    }
+    const result = await new Promise((resolve, reject) => {
+      chrome.runtime.sendNativeMessage(NATIVE_HOST_ID, { action: "getDeviceId" }, response => {
+        const error = chrome.runtime?.lastError;
+        if (error) {
+          reject(new Error("Cihaz koruma yardımcısı bulunamadı. Kurulum yönergesini uygulayıp tarayıcıyı yeniden başlatın."));
+        } else if (!response?.ok || !STABLE_DEVICE_ID_PATTERN.test(String(response.deviceId || ""))) {
+          reject(new Error("Cihaz koruma yardımcısı geçerli bir kimlik döndürmedi."));
+        } else {
+          resolve(response);
+        }
+      });
+    });
+    api.deviceId = result.deviceId;
+    api.deviceIdVerified = true;
     await storageSet({ [DEVICE_ID_KEY]: api.deviceId });
     return api.deviceId;
   }
@@ -699,9 +716,31 @@
         Number(api.account.sessionExpiresAt) > Date.now()
       ) {
         api.url = api.account.apiBaseUrl;
-        api.view = "home";
-        render();
         api.busy = true;
+        api.view = "login";
+        render();
+        let currentDeviceId;
+        try {
+          currentDeviceId = await ensureDeviceId();
+        } catch (error) {
+          api.busy = false;
+          api.lastEmail = api.account.email;
+          render();
+          setMessage(error.message || "Cihaz koruma yardımcısı başlatılamadı.", "error");
+          return;
+        }
+        if (api.account.deviceId !== currentDeviceId) {
+          api.lastEmail = api.account.email;
+          await storageRemove([ACCOUNT_KEY, LICENSE_KEY]);
+          api.account = null;
+          api.subscriptions = [];
+          api.view = "login";
+          api.busy = false;
+          render();
+          setMessage("Cihaz koruması güncellendi. Hesabına yeni cihaz kimliğiyle tekrar giriş yap.", "info");
+          return;
+        }
+        api.view = "home";
         render();
         await refreshSubscriptions();
         api.busy = false;
