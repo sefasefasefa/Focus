@@ -591,11 +591,31 @@ async function handleInstagramRequest(request, response) {
   if (Buffer.byteLength(text, "utf8") > 2 * 1024 * 1024) {
     throw Object.assign(new Error("Instagram yanıtı işlenemeyecek kadar büyük."), { status: 502 });
   }
+  let redirectType = "";
+  if (upstream.status >= 300 && upstream.status < 400) {
+    try {
+      const redirectUrl = new URL(upstream.headers.get("location") || "", normalized.url);
+      const isInstagramHost =
+        redirectUrl.hostname === "instagram.com" ||
+        redirectUrl.hostname.endsWith(".instagram.com");
+      if (isInstagramHost && /^\/accounts\/login(?:\/|$)/i.test(redirectUrl.pathname)) {
+        redirectType = "login";
+      } else if (
+        isInstagramHost &&
+        /^\/(?:challenge|checkpoint)(?:\/|$)/i.test(redirectUrl.pathname)
+      ) {
+        redirectType = "verification";
+      }
+    } catch {
+      // Do not expose or trust a malformed upstream redirect target.
+    }
+  }
   return writeJson(response, 200, {
     ok: upstream.ok,
     status: upstream.status,
     contentType: String(upstream.headers.get("content-type") || "").slice(0, 160),
     retryAfter: String(upstream.headers.get("retry-after") || "").slice(0, 80),
+    ...(redirectType ? { redirectType } : {}),
     text,
   });
 }

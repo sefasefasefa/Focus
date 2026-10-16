@@ -480,8 +480,13 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
   const upstreamStatus = Number(result.payload?.status) || 0;
   const responseText = String(result.payload?.text || '').replace(/^for\s*\(;;\);\s*/, '');
   if (result.payload?.ok !== true) {
-    const message = /login_required|checkpoint_required/i.test(responseText)
+    const redirectType = String(result.payload?.redirectType || '');
+    const message = redirectType === 'login' || /login_required|checkpoint_required/i.test(responseText)
       ? 'Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.'
+      : redirectType === 'verification'
+        ? 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayıp lisans merkezinden sunucu oturumunu yeniden bağlayın.'
+        : upstreamStatus >= 300 && upstreamStatus < 400
+          ? `Instagram isteği başka bir adrese yönlendirdi (HTTP ${upstreamStatus}). Oturum ve istek yolunu kontrol edin.`
       : upstreamStatus === 429
         ? 'Instagram istek sınırı uyguladı. Bir süre bekleyip tekrar deneyin.'
         : `Instagram isteği başarısız oldu (HTTP ${upstreamStatus || 'bilinmiyor'}).`;
