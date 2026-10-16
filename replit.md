@@ -11,6 +11,13 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 
+## Extension releases
+
+- `pnpm run extension:package` — create a Chrome Web Store ZIP in `generated-artifacts/extension-releases/`.
+- `pnpm run extension:publish` — upload the package and submit it for Chrome Web Store review.
+- Both commands require `EXTENSION_LICENSE_API_BASE_URL` to be the public HTTPS origin of the production license API. Automated publishing also requires `CWS_SERVICE_ACCOUNT_EMAIL`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`, and the secret `CWS_SERVICE_ACCOUNT_PRIVATE_KEY`.
+- The current unpacked installs need a one-time switch to the published store listing; approved future releases update automatically. See `extension-work/RELEASE.md`.
+
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
