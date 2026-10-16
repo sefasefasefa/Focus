@@ -16,10 +16,9 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 ## İlk kurulum
 
 1. Bu klasörü kendi sunucuna kopyala.
-2. Node.js 24 kurulu olsun.
-3. Bu klasörde `npm install` çalıştır.
-4. `node setup.mjs` çalıştır. Bu, yerel `.env` dosyasını ve lisans imzalama sırlarını oluşturur.
-5. `.env` dosyasını **yalnızca sunucuda** düzenle:
+2. Node.js 24 veya üzeri kurulu ve ilk çalıştırmada internet bağlantısı hazır olsun.
+3. Linux/macOS'ta terminalden `sh start.sh`, Windows'ta `start.bat` çalıştır. Başlatıcı eksik API bağımlılıklarını otomatik kurar ve `.env` yoksa yerel lisans/oturum sırlarını oluşturur. Mevcut `.env` dosyasını değiştirmez.
+4. İsteğe bağlı Shopier, SMTP ve AI özellikleri için `.env` dosyasını **yalnızca sunucuda** düzenle:
    - `SHOPIER_ACCOUNT_ID`: webhook'taki satıcı hesabı ID'si.
    - `SHOPIER_WEBHOOK_TOKEN`: Shopier uygulamasının webhook imzalama anahtarı. İptal ettiğin erişim token'ından farklıdır.
    - `SHOPIER_LICENSE_PRODUCTS`: aylık ürün ID'sini `30` gün olarak eşleştir; ör. `{"SHOPIER_PRODUCT_ID":30}`. Diğer süreler kabul edilmez.
@@ -28,11 +27,10 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
    - `PUBLIC_API_BASE_URL`: sunucunun herkese açık HTTPS kök adresi; parola sıfırlama bağlantıları burada oluşturulur.
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: ücretsiz hesap e-posta doğrulaması ve parola sıfırlama e-postaları için posta sağlayıcının SMTP bilgileri. Normal posta parolan yerine sağlayıcının uygulama parolasını kullan.
    - `GEMINI_API_KEY` veya `MISTRAL_API_KEY`: seçtiğin AI sağlayıcısının anahtarı. Eklenti ZIP'ine koyma.
-6. `npm start` veya Windows'ta `start.bat` ile başlat.
-7. Caddy/Nginx gibi bir TLS reverse proxy ile HTTPS aç. Caddy örneği `Caddyfile.example` dosyasındadır; Shopier'e verilecek URL `https://api.senin-domainin.tld/api/webhooks/shopier` olmalı.
-8. Shopier geliştirici panelinde `order.created` webhook'u oluştur. İmzayı `Shopier-Signature` başlığından doğrula; bu sunucu doğrulamayı yapar.
-9. Dağıtacağın uzantının `extension-work/env.js` dosyasındaki `LICENSE_API_BASE_URL` değerini kendi herkese açık HTTPS API adresine ayarla; `127.0.0.1` yalnızca yerel geliştirme içindir. Uzantıda **Ücretsiz hesap oluştur** seçeneğiyle e-posta ve parola belirle. Sunucu e-posta doğrulama kodu gönderir; kod onaylanınca hesap açılır, oturum başlar ve 7 günlük ücretsiz deneme başlar. Denemeyi başlatmak için satın alma veya sipariş numarası gerekmez. İlk bağlantıda uzantıya API sunucusu erişim izni ver. Sonraki girişlerde normal e-posta ve parola kullanılır; parolalar sunucuda scrypt ile özetlenir.
-10. 7 günün sonunda korumalı uzantı işlemleri durur. Devam etmek için yalnızca 30 günlük aylık Shopier ürünlerinden biri satın alınmalıdır. Aylık ürünü `SHOPIER_LICENSE_PRODUCTS` içinde `30` gün olarak eşleştir ve `SHOPIER_CHECKOUT_URL` (veya ürün bazında `SHOPIER_PLAN_DETAILS`) ile ödeme bağlantısını tanımla. Uzantıdaki ayrı **Aylık satın alma** sayfasından Shopier'e geçilir; ödeme sırasında hesaba kayıtlı aynı e-posta kullanılmalıdır. İmzalı webhook ödemeyi hesaba bağlar. Satın alım sonrasında **Satın alımı kontrol et** denildiğinde ücretli lisans hesaba verilir; satın alma e-postası koduyla ayrıca etkinleştirme gerekmez.
+5. Caddy/Nginx gibi bir TLS reverse proxy ile HTTPS aç. Caddy örneği `Caddyfile.example` dosyasındadır; Shopier'e verilecek URL `https://api.senin-domainin.tld/api/webhooks/shopier` olmalı.
+6. Shopier geliştirici panelinde `order.created` webhook'u oluştur. İmzayı `Shopier-Signature` başlığından doğrula; bu sunucu doğrulamayı yapar.
+7. Dağıtacağın uzantının `extension-work/env.js` dosyasındaki `LICENSE_API_BASE_URL` değerini kendi herkese açık HTTPS API adresine ayarla; `127.0.0.1` yalnızca yerel geliştirme içindir. Uzantıda **Ücretsiz hesap oluştur** seçeneğiyle e-posta ve parola belirle. Sunucu e-posta doğrulama kodu gönderir; kod onaylanınca hesap açılır, oturum başlar ve 7 günlük ücretsiz deneme başlar. Denemeyi başlatmak için satın alma veya sipariş numarası gerekmez. İlk bağlantıda uzantıya API sunucusu erişim izni ver. Sonraki girişlerde normal e-posta ve parola kullanılır; parolalar sunucuda scrypt ile özetlenir.
+8. 7 günün sonunda korumalı uzantı işlemleri durur. Devam etmek için yalnızca 30 günlük aylık Shopier ürünlerinden biri satın alınmalıdır. Aylık ürünü `SHOPIER_LICENSE_PRODUCTS` içinde `30` gün olarak eşleştir ve `SHOPIER_CHECKOUT_URL` (veya ürün bazında `SHOPIER_PLAN_DETAILS`) ile ödeme bağlantısını tanımla. Uzantıdaki ayrı **Aylık satın alma** sayfasından Shopier'e geçilir; ödeme sırasında hesaba kayıtlı aynı e-posta kullanılmalıdır. İmzalı webhook ödemeyi hesaba bağlar. Satın alım sonrasında **Satın alımı kontrol et** denildiğinde ücretli lisans hesaba verilir; satın alma e-postası koduyla ayrıca etkinleştirme gerekmez.
 
 `SHOPIER_LICENSE_PRODUCTS` ayarlanana kadar ürün webhook'u lisans oluşturmaz. Sadece yapılandırılmış, 30 günlük ürünler ve `paymentStatus=paid` siparişleri kabul edilir; yıllık/ömür boyu ürünler devre dışıdır. Aynı webhook tekrar gelirse ikinci lisans oluşturulmaz. Her e-posta adresi için tek bir 7 günlük deneme oluşturulur. Lisans kullanılan cihaz kimliği ve varsa MAC özetleri kalıcı geçmişte tutulur; aynı cihazdan başka e-posta ile tekrar ücretsiz deneme açılamaz. MAC okunamazsa işletim sistemi kimliği denetimi sürer. Kullanıcı mevcut hesabıyla giriş yapmalı veya aylık satın almalıdır.
 
