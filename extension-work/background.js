@@ -184,6 +184,7 @@ async function validateExtensionLicense(force = false) {
     return {
       active: true,
       expiresAt: licenseExpiresAt,
+      licenseType: String(license.licenseType || ''),
       apiBaseUrl: apiBase,
       accessToken: license.accessToken,
     };
@@ -215,6 +216,7 @@ async function validateExtensionLicense(force = false) {
         return {
           active: true,
           expiresAt: nextLicense.expiresAt,
+          licenseType: nextLicense.licenseType,
           apiBaseUrl: apiBase,
           accessToken: nextLicense.accessToken,
         };
@@ -297,58 +299,6 @@ async function validateExtensionLicense(force = false) {
       message: 'Lisans sunucusuna ulaşılamıyor. İnternet ve API adresini kontrol edin.',
     };
   }
-}
-
-async function requestExtensionLicenseCode(input = {}) {
-  const apiBase = normalizeLicenseApiBase(input.apiBaseUrl);
-  const email = String(input.email || '').trim().toLowerCase();
-  if (!email.includes('@')) {
-    return { ok: false, error: 'Satın alma e-posta adresini gir.' };
-  }
-  const deviceId = await getOrCreateLicenseDeviceId();
-  await setLicenseStorage({ [LICENSE_API_URL_KEY]: apiBase });
-  const { response, payload } = await postLicenseApi(apiBase, '/api/license/activate', {
-    email,
-    deviceId,
-  });
-  if (!response.ok || payload?.verificationRequired !== true) {
-    return { ok: false, error: String(payload?.error || 'Doğrulama kodu istenemedi.') };
-  }
-  return { ok: true, verificationRequired: true };
-}
-
-async function activateExtensionLicense(input = {}) {
-  const apiBase = normalizeLicenseApiBase(input.apiBaseUrl);
-  const email = String(input.email || '').trim().toLowerCase();
-  const code = String(input.code || '').trim();
-  if (!email.includes('@') || !/^\d{6}$/.test(code)) {
-    return { ok: false, error: 'Satın alma e-postası ve 6 haneli doğrulama kodu gerekli.' };
-  }
-  const deviceId = await getOrCreateLicenseDeviceId();
-  await setLicenseStorage({ [LICENSE_API_URL_KEY]: apiBase });
-  const { response, payload } = await postLicenseApi(apiBase, '/api/license/activate/verify', {
-    email,
-    code,
-    deviceId,
-  });
-  if (!response.ok || !payload?.accessToken) {
-    return { ok: false, error: String(payload?.error || 'Lisans etkinleştirilemedi.') };
-  }
-  const license = {
-    apiBaseUrl: apiBase,
-    deviceId,
-    accessToken: payload.accessToken,
-    refreshToken: String(payload.refreshToken || ''),
-    tokenExpiresAt: Date.now() + 9 * 60 * 1000,
-    validatedAt: Date.now(),
-    expiresAt: payload.expiresAt == null ? null : Number(payload.expiresAt),
-    licenseType: String(payload.licenseType || ''),
-  };
-  await setLicenseStorage({
-    [LICENSE_API_URL_KEY]: apiBase,
-    [LICENSE_STATE_KEY]: license,
-  });
-  return { ok: true, active: true, expiresAt: license.expiresAt };
 }
 
 async function requireActiveLicense() {
@@ -7935,6 +7885,7 @@ function dispatchExtensionMessage(msg, _sender, reply) {
         expired: Boolean(status.expired),
         trialExpired: Boolean(status.trialExpired),
         expiresAt: status.expiresAt ?? null,
+        licenseType: status.licenseType || '',
         message: status.message || '',
       }))
       .catch(error => reply({ active: false, message: error?.message || String(error) }));
@@ -7954,24 +7905,6 @@ function dispatchExtensionMessage(msg, _sender, reply) {
   }
   if (msg.type === 'INSTAGRAM_SESSION_UNLINK') {
     unlinkInstagramSession()
-      .then(reply)
-      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
-    return true;
-  }
-  if (msg.type === 'LICENSE_ACTIVATE') {
-    requestExtensionLicenseCode(msg.payload || msg)
-      .then(reply)
-      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
-    return true;
-  }
-  if (msg.type === 'LICENSE_ACTIVATE_REQUEST') {
-    requestExtensionLicenseCode(msg.payload || msg)
-      .then(reply)
-      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
-    return true;
-  }
-  if (msg.type === 'LICENSE_ACTIVATE_VERIFY') {
-    activateExtensionLicense(msg.payload || msg)
       .then(reply)
       .catch(error => reply({ ok: false, error: error?.message || String(error) }));
     return true;
@@ -9305,9 +9238,6 @@ const LICENSE_REQUIRED_EXTENSION_MESSAGES = new Set([
 const LICENSE_FREE_EXTENSION_MESSAGES = new Set([
   'LICENSE_PUBLIC_CONFIG',
   'LICENSE_GET_STATUS',
-  'LICENSE_ACTIVATE',
-  'LICENSE_ACTIVATE_REQUEST',
-  'LICENSE_ACTIVATE_VERIFY',
   'CLEAR_EXTENSION_DATA',
 ]);
 

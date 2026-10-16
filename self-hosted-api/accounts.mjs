@@ -243,7 +243,10 @@ export function createAccountHandlers({
       const count = db.prepare(`
         SELECT COUNT(*) AS total FROM license_devices WHERE order_id = ?
       `).get(order.order_id);
-      if (Number(count.total) >= Number(order.device_limit)) {
+      if (
+        order.payment_status !== "paid" &&
+        Number(count.total) >= Number(order.device_limit)
+      ) {
         throw Object.assign(new Error("Bu lisans için cihaz sınırına ulaşıldı."), { status: 409 });
       }
       db.prepare(`
@@ -456,6 +459,18 @@ export function createAccountHandlers({
     });
   }
 
+  async function refreshAccountLicense(request, response) {
+    requireConfiguredLicenseSecrets();
+    const session = authenticateAccount(request);
+    const order = findActiveOrder(session.email_hash);
+    const license = order ? issueLicense(order, session.device_id) : null;
+    return writeJson(response, 200, {
+      ok: true,
+      license,
+      subscriptions: listSubscriptions(session.email_hash),
+    });
+  }
+
   async function logout(request, response) {
     requireConfiguredLicenseSecrets();
     const session = authenticateAccount(request);
@@ -659,6 +674,7 @@ form.addEventListener("submit",async event=>{
     verifyLicenseActivation,
     login,
     subscriptions,
+    refreshAccountLicense,
     logout,
     requestPasswordReset,
     resetPassword,

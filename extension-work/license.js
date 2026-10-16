@@ -4,18 +4,15 @@
   const runtimeAvailable = Boolean(globalThis.chrome?.runtime?.sendMessage);
   const storageAvailable = Boolean(globalThis.chrome?.storage?.local);
   const elements = {
-    email: document.getElementById("purchase-email"),
-    activationCodeField: document.getElementById("activation-code-field"),
-    activationCode: document.getElementById("activation-code"),
-    changeActivationEmail: document.getElementById("change-activation-email"),
-    activationForm: document.getElementById("activation-form"),
-    activateButton: document.getElementById("activate-button"),
-    activationFeedback: document.getElementById("activation-feedback"),
     refreshStatus: document.getElementById("refresh-status"),
-    logoutButton: document.getElementById("logout-button"),
     statusPanel: document.getElementById("license-status"),
     statusLabel: document.getElementById("status-label"),
     statusDetail: document.getElementById("status-detail"),
+    accountState: document.getElementById("purchase-account-state"),
+    accountEmail: document.getElementById("purchase-account-email"),
+    purchaseFeedback: document.getElementById("purchase-feedback"),
+    openAccountButton: document.getElementById("open-account-button"),
+    checkPurchaseButton: document.getElementById("check-purchase-button"),
     sessionPanel: document.getElementById("instagram-session-status"),
     sessionLabel: document.getElementById("instagram-session-label"),
     sessionDetail: document.getElementById("instagram-session-detail"),
@@ -32,15 +29,13 @@
 
   let statusBusy = false;
   let configBusy = false;
-  let activationBusy = false;
-  let activationCodeSent = false;
-  let logoutBusy = false;
+  let purchaseBusy = false;
   let sessionBusy = false;
   let licenseActive = false;
   let sessionLinked = false;
   let licenseApiBaseUrl = "";
   let trialExpiredNeedsPurchase = false;
-  let publicMonthlyPlans = [];
+  let accountSession = null;
 
   function setStatus(label, detail, state = "loading") {
     elements.statusLabel.textContent = label;
@@ -51,15 +46,10 @@
   function renderTrialPurchaseLink() {
     elements.statusPanel.querySelector(".trial-purchase-link")?.remove();
     if (!trialExpiredNeedsPurchase) return;
-    const plan = publicMonthlyPlans.find(item => Number(item.days) === 30);
-    const checkout = safeCheckoutUrl(plan?.checkoutUrl);
-    if (!checkout) return;
     const link = document.createElement("a");
     link.className = "plan-link trial-purchase-link";
-    link.href = checkout;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = plan.name ? `${plan.name} satın al` : "Aylık lisans satın al";
+    link.href = "#purchase-account";
+    link.textContent = "Aylık satın alma sayfasına git";
     elements.statusPanel.querySelector(".status-copy").append(link);
   }
 
@@ -68,10 +58,10 @@
     elements.plansDetail.textContent = detail;
   }
 
-  function setFeedback(message, kind = "error") {
-    elements.activationFeedback.textContent = message;
-    if (message) elements.activationFeedback.dataset.kind = kind;
-    else delete elements.activationFeedback.dataset.kind;
+  function setPurchaseFeedback(message, kind = "error") {
+    elements.purchaseFeedback.textContent = message;
+    if (message) elements.purchaseFeedback.dataset.kind = kind;
+    else delete elements.purchaseFeedback.dataset.kind;
   }
 
   function setInstagramSessionStatus(label, detail, state = "loading") {
@@ -89,9 +79,9 @@
   function renderBusy() {
     elements.refreshStatus.disabled = statusBusy || !runtimeAvailable;
     elements.refreshPlans.disabled = configBusy || !runtimeAvailable;
-    elements.activateButton.disabled = activationBusy || !runtimeAvailable;
-    elements.changeActivationEmail.disabled = activationBusy || !runtimeAvailable;
-    elements.logoutButton.disabled = logoutBusy || statusBusy || !runtimeAvailable;
+    elements.checkPurchaseButton.disabled =
+      purchaseBusy || !runtimeAvailable || !accountSession ||
+      Number(accountSession.sessionExpiresAt) <= Date.now();
     elements.sessionLinkButton.disabled =
       sessionBusy || !runtimeAvailable || !licenseActive ||
       !elements.sessionConsent.checked || sessionLinked;
@@ -99,7 +89,157 @@
       sessionBusy || !runtimeAvailable || !licenseActive || !sessionLinked;
     elements.refreshStatus.setAttribute("aria-busy", String(statusBusy));
     elements.refreshPlans.setAttribute("aria-busy", String(configBusy));
-    elements.activateButton.setAttribute("aria-busy", String(activationBusy));
+    elements.checkPurchaseButton.setAttribute("aria-busy", String(purchaseBusy));
+  }
+
+  function readStoredAccount() {
+    return new Promise(resolve => {
+      if (!storageAvailable) {
+        resolve(null);
+        return;
+      }
+      chrome.storage.local.get(["tpAccountState"], result => {
+        resolve(result?.tpAccountState && typeof result.tpAccountState === "object"
+          ? result.tpAccountState
+          : null);
+      });
+    });
+  }
+
+  function renderAccountState() {
+    const signedIn = Boolean(
+      accountSession?.sessionToken &&
+      accountSession?.email &&
+      Number(accountSession.sessionExpiresAt) > Date.now(),
+    );
+    elements.accountState.textContent = signedIn
+      ? "Hesabınla giriş yaptın. Satın alma bu hesaba bağlanacak."
+      : "Satın alma için önce e-posta ve parolanla giriş yap veya ücretsiz hesap oluştur.";
+    elements.accountEmail.hidden = !signedIn;
+    elements.accountEmail.textContent = signedIn
+      ? `Shopier'de kullanacağın e-posta: ${accountSession.email}`
+      : "";
+    elements.openAccountButton.textContent = signedIn
+      ? "Hesap bilgilerini aç"
+      : "Giriş yap / ücretsiz hesap oluştur";
+    renderBusy();
+  }
+
+  function openAccountPage() {
+    if (!globalThis.chrome?.tabs?.create || !globalThis.chrome?.runtime?.getURL) {
+      setPurchaseFeedback("Hesap ekranı uzantı içinden açılamadı.", "error");
+      return;
+    }
+    chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
+  }
+
+  async function syncAccountLicense(requestPermission = false) {
+    if (
+      !accountSession?.sessionToken ||
+      Number(accountSession.sessionExpiresAt) <= Date.now()
+    ) {
+      renderAccountState();
+      return null;
+    }
+    const apiBaseUrl = validateApiUrl(accountSession.apiBaseUrl || licenseApiBaseUrl);
+    await ensureServerPermission(apiBaseUrl, requestPermission);
+    await saveUrl(apiBaseUrl);
+    const response = await fetch(`${apiBaseUrl}/api/account/license/refresh`, {
+      method: "POST",
+      cache: "no-store",
+      credentials: "omit",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accountSession.sessionToken}`,
+      },
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) {
+      throw new Error(String(result?.error || "Hesap lisansı yenilenemedi."));
+    }
+    licenseApiBaseUrl = apiBaseUrl;
+    accountSession.apiBaseUrl = apiBaseUrl;
+    const license = result.license;
+    if (license?.accessToken) {
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.set({
+          tpLicenseApiBaseUrl: apiBaseUrl,
+          tpLicenseState: {
+            apiBaseUrl,
+            deviceId: accountSession.deviceId || license.deviceId || "",
+            accessToken: license.accessToken,
+            refreshToken: String(license.refreshToken || ""),
+            tokenExpiresAt: Number(license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,
+            validatedAt: Date.now(),
+            expiresAt: license.expiresAt == null ? null : Number(license.expiresAt),
+            licenseType: String(license.licenseType || ""),
+          },
+          tpAccountState: accountSession,
+        }, () => {
+          const error = chrome.runtime?.lastError;
+          if (error) reject(new Error(error.message || "Lisans bilgisi kaydedilemedi."));
+          else resolve();
+        });
+      });
+    } else if (Array.isArray(result.subscriptions) &&
+      result.subscriptions.some(item => item.isTrial === true && item.status === "expired")) {
+      const trial = result.subscriptions.find(item => item.isTrial === true && item.status === "expired");
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.set({
+          tpLicenseApiBaseUrl: apiBaseUrl,
+          tpLicenseState: {
+            apiBaseUrl,
+            deviceId: accountSession.deviceId || "",
+            accessToken: "",
+            refreshToken: "",
+            tokenExpiresAt: 0,
+            validatedAt: 0,
+            expiresAt: Number(trial.expiresAt) || Date.now() - 1,
+            licenseType: "trial",
+          },
+          tpAccountState: accountSession,
+        }, () => {
+          const error = chrome.runtime?.lastError;
+          if (error) reject(new Error(error.message || "Deneme durumu kaydedilemedi."));
+          else resolve();
+        });
+      });
+    } else {
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.remove(["tpLicenseState"], () => {
+          const error = chrome.runtime?.lastError;
+          if (error) reject(new Error(error.message || "Eski lisans kaldırılamadı."));
+          else resolve();
+        });
+      });
+    }
+    renderAccountState();
+    return result;
+  }
+
+  async function checkPurchase() {
+    if (purchaseBusy) return;
+    purchaseBusy = true;
+    setPurchaseFeedback("Shopier bildirimi kontrol ediliyor…", "success");
+    renderBusy();
+    try {
+      const result = await syncAccountLicense(true);
+      if (!result?.license?.accessToken) {
+        setPurchaseFeedback("Aktif lisans bulunamadı. Shopier ödemesinde hesap e-postanı kullandığını ve ödemenin tamamlandığını kontrol et.", "error");
+        return;
+      }
+      if (String(result.license.licenseType) === "paid") {
+        setPurchaseFeedback("Satın alma doğrulandı. Aylık erişimin açıldı; tüm lisanslı özellikler kullanılabilir.", "success");
+      } else {
+        setPurchaseFeedback("Ödeme bildirimi henüz ulaşmadı. Biraz bekleyip yeniden kontrol et.", "success");
+      }
+      await refreshStatus(true);
+    } catch (error) {
+      setPurchaseFeedback(error?.message || "Satın alma durumu kontrol edilemedi.", "error");
+    } finally {
+      purchaseBusy = false;
+      renderBusy();
+    }
   }
 
   function sendMessage(message) {
@@ -301,19 +441,34 @@
     }
   }
 
-  async function refreshStatus() {
+  async function refreshStatus(accountAlreadySynced = false) {
     if (statusBusy) return;
     statusBusy = true;
     renderBusy();
     setStatus("Durum kontrol ediliyor", "Lisans sunucusuna bağlanılıyor.", "loading");
     try {
+      if (
+        !accountAlreadySynced &&
+        accountSession?.sessionToken &&
+        Number(accountSession.sessionExpiresAt) > Date.now()
+      ) {
+        try {
+          await syncAccountLicense(false);
+        } catch (error) {
+          setPurchaseFeedback(error?.message || "Hesap lisansı yenilenemedi.", "error");
+        }
+      }
       const result = await sendMessage({ type: "LICENSE_GET_STATUS", force: true });
       if (!result || typeof result !== "object") throw new Error("Lisans sunucusu geçerli bir yanıt vermedi.");
       const message = typeof result.message === "string" ? result.message : "";
       licenseActive = result.active === true;
       if (result.active === true) {
         trialExpiredNeedsPurchase = false;
-        setStatus("Lisans etkin", formatExpiry(result.expiresAt), "active");
+        setStatus(
+          result.licenseType === "trial" ? "7 günlük ücretsiz deneme etkin" : "Aylık lisans etkin",
+          formatExpiry(result.expiresAt),
+          "active",
+        );
         renderTrialPurchaseLink();
       } else if (result.trialExpired === true) {
         trialExpiredNeedsPurchase = true;
@@ -325,7 +480,7 @@
         renderTrialPurchaseLink();
       } else {
         trialExpiredNeedsPurchase = false;
-        setStatus("Etkin lisans bulunamadı", message || "Satın alma bilgilerinle lisansını etkinleştirebilirsin.", "inactive");
+        setStatus("Etkin lisans bulunamadı", message || "Aylık satın alma sayfasından devam edebilirsin.", "inactive");
         renderTrialPurchaseLink();
       }
       await refreshInstagramSessionStatus();
@@ -370,13 +525,32 @@
     price.textContent = typeof plan.priceLabel === "string" && plan.priceLabel.trim() ? plan.priceLabel : "Fiyat bilgisi sunucuda yok";
     purchase.append(price);
     const checkout = safeCheckoutUrl(plan.checkoutUrl);
-    if (checkout) {
+    if (!accountSession?.sessionToken || Number(accountSession.sessionExpiresAt) <= Date.now()) {
+      const login = document.createElement("button");
+      login.className = "plan-link plan-login-link";
+      login.type = "button";
+      login.textContent = "Satın almak için giriş yap";
+      login.addEventListener("click", openAccountPage);
+      purchase.append(login);
+    } else if (checkout) {
       const link = document.createElement("a");
       link.className = "plan-link";
       link.href = checkout;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = "Shopier'de devam et";
+      link.textContent = "Aylık satın al";
+      link.addEventListener("click", event => {
+        if (
+          !accountSession?.sessionToken ||
+          Number(accountSession.sessionExpiresAt) <= Date.now()
+        ) {
+          event.preventDefault();
+          accountSession = null;
+          renderAccountState();
+          setPurchaseFeedback("Satın almaya devam etmek için hesabına yeniden giriş yap.", "error");
+          openAccountPage();
+        }
+      });
       const arrow = document.createElement("span");
       arrow.setAttribute("aria-hidden", "true");
       arrow.textContent = "↗";
@@ -407,7 +581,6 @@
         throw new Error(typeof result?.error === "string" ? result.error : "Paket bilgileri sunucudan alınamadı.");
       }
       const plans = Array.isArray(result.plans) ? result.plans : [];
-      publicMonthlyPlans = plans.filter(plan => Number(plan.days) === 30);
       if (plans.length === 0) {
         setPlansState("Henüz paket yapılandırılmamış", "Paket seçenekleri lisans sunucusu tarafından henüz yayınlanmadı.");
         renderTrialPurchaseLink();
@@ -417,96 +590,10 @@
       setPlansState("Güncel paketler", "Fiyat ve ödeme bağlantıları lisans sunucusundan alınır.");
       renderTrialPurchaseLink();
     } catch (error) {
-      publicMonthlyPlans = [];
       setPlansState("Paketlere şu an ulaşılamıyor", error?.message || "API sunucusunun çalıştığını kontrol edip tekrar deneyin.");
       renderTrialPurchaseLink();
     } finally {
       configBusy = false;
-      renderBusy();
-    }
-  }
-
-  async function handleActivation(event) {
-    event.preventDefault();
-    if (activationBusy) return;
-    setFeedback("");
-    const email = elements.email.value.trim();
-    const code = elements.activationCode.value.trim();
-    let apiBaseUrl;
-    try {
-      apiBaseUrl = getApiBaseUrl();
-      if (!elements.email.checkValidity()) throw new Error("Geçerli bir satın alma e-postası gir.");
-      if (activationCodeSent && !elements.activationCode.checkValidity()) {
-        throw new Error("E-postana gelen 6 haneli kodu gir.");
-      }
-      await ensureServerPermission(apiBaseUrl, true);
-    } catch (error) {
-      setFeedback(error.message);
-      return;
-    }
-    activationBusy = true;
-    renderBusy();
-    elements.activateButton.querySelector("span").textContent = "Doğrulanıyor";
-    try {
-      await saveUrl(apiBaseUrl);
-      const result = await sendMessage({
-        type: activationCodeSent ? "LICENSE_ACTIVATE_VERIFY" : "LICENSE_ACTIVATE_REQUEST",
-        apiBaseUrl,
-        email,
-        code,
-      });
-      if (!result || typeof result !== "object" || result.ok !== true) {
-        throw new Error(typeof result?.error === "string" ? result.error : "Lisans doğrulanamadı. Bilgilerini kontrol edip tekrar dene.");
-      }
-      if (!activationCodeSent && result.verificationRequired === true) {
-        activationCodeSent = true;
-        elements.activationCodeField.hidden = false;
-        elements.changeActivationEmail.hidden = false;
-        elements.email.readOnly = true;
-        elements.activationCode.required = true;
-        elements.activationCode.focus();
-        setFeedback("Satın alma e-postanla eşleşen etkin bir ödeme varsa 6 haneli kod gönderildi. Kod 10 dakika geçerlidir.", "success");
-        return;
-      }
-      if (result.active !== true) {
-        throw new Error(typeof result?.error === "string" ? result.error : "Lisans doğrulanamadı. Bilgilerini kontrol edip tekrar dene.");
-      }
-      setFeedback("Lisansın başarıyla etkinleştirildi.", "success");
-      elements.email.value = "";
-      elements.activationCode.value = "";
-      elements.activationCode.required = false;
-      elements.activationCodeField.hidden = true;
-      elements.changeActivationEmail.hidden = true;
-      elements.email.readOnly = false;
-      activationCodeSent = false;
-      licenseActive = true;
-      setStatus("Lisans etkin", formatExpiry(result.expiresAt), "active");
-      await refreshInstagramSessionStatus();
-    } catch (error) {
-      const message = error?.message || "Lisans sunucusuna ulaşılamadı. Biraz sonra tekrar dene.";
-      setFeedback(message);
-      setStatus("Etkinleştirme tamamlanmadı", message, "error");
-    } finally {
-      activationBusy = false;
-      elements.activateButton.querySelector("span").textContent =
-        activationCodeSent ? "Kodu doğrula" : "Doğrulama kodu gönder";
-      renderBusy();
-    }
-  }
-
-  async function logout() {
-    if (logoutBusy) return;
-    logoutBusy = true;
-    renderBusy();
-    try {
-      const result = await sendMessage({ type: "LICENSE_LOGOUT" });
-      if (!result || result.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : "Lisans oturumu kapatılamadı.");
-      setStatus("Lisans oturumu kapatıldı", "Bu uzantıda lisans doğrulaması kaldırıldı.", "inactive");
-      await refreshStatus();
-    } catch (error) {
-      setStatus("Oturum kapatılamadı", error?.message || "Lisans sunucusuna ulaşılamadı.", "error");
-    } finally {
-      logoutBusy = false;
       renderBusy();
     }
   }
@@ -521,19 +608,8 @@
     await refreshStatus();
   });
   elements.refreshPlans.addEventListener("click", () => refreshPlans(true));
-  elements.activationForm.addEventListener("submit", handleActivation);
-  elements.changeActivationEmail.addEventListener("click", () => {
-    activationCodeSent = false;
-    elements.email.readOnly = false;
-    elements.activationCode.value = "";
-    elements.activationCode.required = false;
-    elements.activationCodeField.hidden = true;
-    elements.changeActivationEmail.hidden = true;
-    elements.activateButton.querySelector("span").textContent = "Doğrulama kodu gönder";
-    setFeedback("Satın alma e-posta adresini güncelle ve yeni kod iste.", "success");
-    elements.email.focus();
-  });
-  elements.logoutButton.addEventListener("click", logout);
+  elements.openAccountButton.addEventListener("click", openAccountPage);
+  elements.checkPurchaseButton.addEventListener("click", checkPurchase);
   elements.sessionConsent.addEventListener("change", renderBusy);
   elements.sessionLinkButton.addEventListener("click", linkInstagramSession);
   elements.sessionUnlinkButton.addEventListener("click", unlinkInstagramSession);
@@ -542,14 +618,27 @@
     if (!runtimeAvailable) {
       setStatus("Uzantı API'si kullanılamıyor", "Lisans işlemleri Chrome uzantısı içinde kullanılabilir; bu önizlemede sunucuya bağlanılamaz.", "error");
       setPlansState("Paketler yüklenemedi", "Chrome uzantı iletişim API'si bulunamadı. Uzantı panelini açıp yeniden deneyin.");
+      renderAccountState();
       renderBusy();
       return;
     }
     const savedUrl = await readStoredUrl();
+    accountSession = await readStoredAccount();
     const defaultUrl = typeof globalThis.__TAKIPCI_ENV__?.LICENSE_API_BASE_URL === "string"
       ? globalThis.__TAKIPCI_ENV__.LICENSE_API_BASE_URL
       : "";
-    licenseApiBaseUrl = String(defaultUrl || savedUrl).trim();
+    licenseApiBaseUrl = String(accountSession?.apiBaseUrl || savedUrl || defaultUrl).trim();
+    renderAccountState();
+    chrome.storage.onChanged?.addListener((changes, areaName) => {
+      if (areaName !== "local" || !changes.tpAccountState) return;
+      accountSession = changes.tpAccountState.newValue &&
+        typeof changes.tpAccountState.newValue === "object"
+        ? changes.tpAccountState.newValue
+        : null;
+      if (accountSession?.apiBaseUrl) licenseApiBaseUrl = accountSession.apiBaseUrl;
+      renderAccountState();
+      void refreshPlans(false);
+    });
     await Promise.all([refreshStatus(), refreshPlans()]);
   }
 

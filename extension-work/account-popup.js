@@ -13,7 +13,6 @@
     deviceId: "",
     account: null,
     subscriptions: [],
-    monthlyPlans: [],
     view: "login",
     busy: false,
     message: "",
@@ -275,14 +274,14 @@
           <button class="account-button" type="button" data-action="settings">Ayarlar</button>
           <button class="account-button danger" type="button" data-action="logout" ${api.busy ? "disabled" : ""}>${api.busy ? "Çıkış yapılıyor…" : "Çıkış yap"}</button>
         </div>
+        <button class="account-button primary purchase-page-button" type="button" data-action="purchase">Aylık satın alma sayfası</button>
         <div class="account-divider"></div>
         <h3 class="subscription-title">Abonelikler</h3>
-        ${trialExpired ? `<aside class="trial-expired-notice"><strong>7 günlük ücretsiz denemen sona erdi.</strong><span>Devam etmek için aylık lisansı Shopier'de bu hesap e-postasıyla satın almalısın. Satın alım olmadan erişim açılmaz.</span><div data-monthly-purchase></div></aside>` : ""}
+        ${trialExpired ? `<aside class="trial-expired-notice"><strong>7 günlük ücretsiz denemen sona erdi.</strong><span>Devam etmek için aylık satın alma sayfasından bu hesapla devam et. Ödeme onaylandıktan sonra erişimin otomatik açılır.</span></aside>` : ""}
         <div data-subscription-list>${subscriptionsMarkup}</div>
         <p class="account-message" data-account-message role="status"></p>
       </section>`;
     root.querySelector("[data-account-email]").textContent = api.account?.email || "";
-    if (trialExpired) renderMonthlyPurchase(root.querySelector("[data-monthly-purchase]"));
     const cards = root.querySelectorAll(".subscription-card");
     cards.forEach((card, index) => {
       const subscription = api.subscriptions[index];
@@ -298,33 +297,14 @@
       render();
     });
     root.querySelector('[data-action="logout"]').addEventListener("click", handleLogout);
+    root.querySelector('[data-action="purchase"]').addEventListener("click", () => {
+      try {
+        chrome.tabs.create({ url: chrome.runtime.getURL("license.html") });
+      } catch {
+        setMessage("Satın alma sayfası açılamadı. Uzantı izinlerini kontrol edin.", "error");
+      }
+    });
     renderMessage();
-  }
-
-  function safeCheckoutUrl(raw) {
-    try {
-      const url = new URL(String(raw || ""));
-      return url.protocol === "https:" ? url.href : "";
-    } catch {
-      return "";
-    }
-  }
-
-  function renderMonthlyPurchase(container) {
-    if (!container) return;
-    const plan = api.monthlyPlans.find(item => Number(item.days) === 30);
-    const url = safeCheckoutUrl(plan?.checkoutUrl);
-    if (!url) {
-      container.textContent = "Aylık ödeme bağlantısı şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.";
-      return;
-    }
-    const link = document.createElement("a");
-    link.className = "account-button primary trial-purchase-link";
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = plan.name ? `${plan.name} satın al` : "Aylık lisans satın al";
-    container.append(link);
   }
 
   async function storeAccountLogin(result, email, apiBaseUrl, deviceId) {
@@ -340,7 +320,6 @@
       deviceId,
     };
     api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
-    api.monthlyPlans = Array.isArray(result.monthlyPlans) ? result.monthlyPlans : [];
     const values = {
       [API_URL_KEY]: apiBaseUrl,
       [DEVICE_ID_KEY]: deviceId,
@@ -657,12 +636,31 @@
       if (!(await hasServerPermission(api.account.apiBaseUrl))) {
         throw new Error("Abonelikleri görmek için API sunucu izni gerekli.");
       }
-      const result = await requestJson(api.account.apiBaseUrl, "/api/account/subscriptions", {
+      const entitlement = await requestJson(api.account.apiBaseUrl, "/api/account/license/refresh", {
+        method: "POST",
         token: api.account.sessionToken,
       });
-      api.subscriptions = Array.isArray(result.subscriptions) ? result.subscriptions : [];
-      const publicConfig = await requestJson(api.account.apiBaseUrl, "/api/public-config");
-      api.monthlyPlans = Array.isArray(publicConfig.plans) ? publicConfig.plans : [];
+      api.subscriptions = Array.isArray(entitlement.subscriptions)
+        ? entitlement.subscriptions
+        : api.subscriptions;
+      if (entitlement.license?.accessToken) {
+        await storageSet({
+          [LICENSE_KEY]: {
+            apiBaseUrl: api.account.apiBaseUrl,
+            deviceId: api.account.deviceId,
+            accessToken: entitlement.license.accessToken,
+            refreshToken: String(entitlement.license.refreshToken || ""),
+            tokenExpiresAt: Number(entitlement.license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,
+            validatedAt: Date.now(),
+            expiresAt: entitlement.license.expiresAt == null
+              ? null
+              : Number(entitlement.license.expiresAt),
+            licenseType: String(entitlement.license.licenseType || ""),
+          },
+        });
+      } else {
+        await storageRemove([LICENSE_KEY]);
+      }
       await storageSet({ [ACCOUNT_KEY]: api.account });
       render();
     } catch (error) {

@@ -971,6 +971,9 @@ async function handleRequest(request, response) {
   if (request.method === "GET" && url.pathname === "/api/account/subscriptions") {
     return await accountHandlers.subscriptions(request, response);
   }
+  if (request.method === "POST" && url.pathname === "/api/account/license/refresh") {
+    return await accountHandlers.refreshAccountLicense(request, response);
+  }
   if (request.method === "DELETE" && url.pathname === "/api/account/session") {
     return await accountHandlers.logout(request, response);
   }

@@ -120,6 +120,13 @@ h1, h2, p { margin-top: 0; }
 .trial-purchase-link { margin-top: 4px; }
 .status-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .fine-print, .privacy-note { color: var(--dim); font-size: 9px; line-height: 1.5; }
+.purchase-account-state { padding: 12px 14px; border: 1px solid rgba(193,139,250,.16); border-radius: 9px; background: rgba(131,58,180,.07); color: #d4cedd; font-size: 11px; line-height: 1.55; }
+.purchase-account-email { margin: 10px 0 0; color: #e6c8ff; font-size: 11px; font-weight: 800; overflow-wrap: anywhere; }
+.purchase-feedback { min-height: 0; margin: 0; padding-top: 0; color: var(--bad); font-size: 10px; line-height: 1.5; }
+.purchase-feedback:not(:empty) { padding-top: 10px; }
+.purchase-feedback[data-kind="success"] { color: var(--good); }
+.purchase-actions { flex-wrap: wrap; }
+.plan-login-link { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .session-card { margin-top: 16px; }
 .session-consent { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; color: #c3bdce; font-size: 10px; line-height: 1.55; }
 .session-consent input { flex: 0 0 auto; width: 15px; height: 15px; margin: 1px 0 0; accent-color: #c18bfa; }

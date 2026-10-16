@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>Lisans ve paketler · Takipçi</title>
+    <title>Aylık satın alma · Takipçi</title>
     <link rel="stylesheet" href="./license.css">
     <script src="./env.js"></script>
     <script defer src="./license.js"></script>
@@ -23,16 +23,16 @@
       </header>
 
       <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow"><span class="eyebrow-line"></span> LİSANS MERKEZİ</p>
-        <h1 id="page-title">Kullanımın<br><em>kontrolü sende.</em></h1>
-        <p class="intro-copy">Lisansını doğrula, süreni takip et veya sana uygun paketi seç.</p>
+        <p class="eyebrow"><span class="eyebrow-line"></span> ABONELİK MERKEZİ</p>
+        <h1 id="page-title">Hesabınla<br><em>satın al.</em></h1>
+        <p class="intro-copy">E-posta ve parolanla hesabına giriş yap. Aylık planı satın aldıktan sonra erişimin hesabına otomatik tanımlanır.</p>
       </section>
 
       <section class="license-card surface" aria-labelledby="status-title">
         <div class="card-heading">
           <div>
-            <p class="section-kicker">HESAP DURUMU</p>
-            <h2 id="status-title">Lisansın</h2>
+            <p class="section-kicker">ERİŞİM DURUMU</p>
+            <h2 id="status-title">Aboneliğin</h2>
           </div>
           <button class="button button-quiet button-small" id="refresh-status" type="button" aria-label="Lisans durumunu yenile">
             <span class="refresh-symbol" aria-hidden="true">↻</span> Yenile
@@ -45,34 +45,24 @@
             <span id="status-detail">Lisans sunucusuna bağlanılıyor.</span>
           </div>
         </div>
-        <div class="status-actions">
-          <button class="button button-quiet" id="logout-button" type="button" disabled>Lisansı kaldır</button>
-          <span class="fine-print">Bu işlem yalnızca bu uzantıdaki lisans oturumunu kapatır.</span>
-        </div>
       </section>
 
-      <section class="activation-card surface" aria-labelledby="activate-title">
+      <section class="activation-card surface" id="purchase-account" aria-labelledby="purchase-title">
         <div class="section-heading">
-          <p class="section-kicker">SATIN ALMA SONRASI</p>
-          <h2 id="activate-title">Lisansını etkinleştir</h2>
-          <p>Shopier satın alımında kullandığın e-posta adresine gelen kodla lisansını tanıt.</p>
+          <p class="section-kicker">HESAP VE SATIN ALMA</p>
+          <h2 id="purchase-title">E-posta ve parolanla giriş yap</h2>
+          <p>Ödeme, giriş yaptığın hesaba e-posta adresi üzerinden bağlanır. Satın alma sırasında aşağıdaki e-posta adresini kullan.</p>
         </div>
-        <form id="activation-form" novalidate>
-          <label class="field">
-            <span>Satın alma e-postası</span>
-            <input id="purchase-email" name="email" type="email" autocomplete="email" placeholder="ornek@eposta.com" required>
-          </label>
-          <label class="field" id="activation-code-field" hidden>
-            <span>E-postana gelen 6 haneli kod</span>
-            <input id="activation-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
-          </label>
-          <button class="button button-quiet button-small" id="change-activation-email" type="button" hidden>Başka e-posta kullan</button>
-          <button class="button button-primary button-wide" id="activate-button" type="submit">
-            <span>Doğrulama kodu gönder</span><span aria-hidden="true">→</span>
-          </button>
-          <p class="form-feedback" id="activation-feedback" role="status" aria-live="polite"></p>
-          <p class="privacy-note">Sipariş numarası gerekmez. Kod 10 dakika geçerlidir; e-posta adresin uzantıda saklanmaz.</p>
-        </form>
+        <div class="purchase-account-state" id="purchase-account-state" role="status" aria-live="polite">
+          Hesap durumu kontrol ediliyor…
+        </div>
+        <p class="purchase-account-email" id="purchase-account-email" hidden></p>
+        <p class="purchase-feedback" id="purchase-feedback" role="status" aria-live="polite"></p>
+        <div class="status-actions purchase-actions">
+          <button class="button button-primary" id="open-account-button" type="button">Giriş yap / ücretsiz hesap oluştur</button>
+          <button class="button button-quiet" id="check-purchase-button" type="button" disabled>Satın alımı kontrol et</button>
+        </div>
+        <p class="privacy-note">Shopier’de farklı bir e-posta kullanırsan satın alma hesabınla eşleşmez. 7 günlük deneme bittikten sonra devam etmek için aylık plan gerekir.</p>
       </section>
 
       <section class="session-card surface" aria-labelledby="session-title">
@@ -104,7 +94,7 @@
         <div class="plans-heading">
           <div>
             <p class="section-kicker">PAKETLER</p>
-            <h2 id="plans-title">İhtiyacına göre seç</h2>
+            <h2 id="plans-title">Aylık plan</h2>
           </div>
           <button class="button button-quiet button-small" id="refresh-plans" type="button">Paketleri yenile</button>
         </div>
@@ -122,8 +112,8 @@
         <span class="renewal-index" aria-hidden="true">01</span>
         <div>
           <p class="section-kicker">SÜREYİ UZATMA</p>
-          <h2 id="renewal-title">Aynı e-posta, yeni sipariş.</h2>
-          <p>Aylık yenileme için Shopier’den yeni bir sipariş ver. Aynı satın alma e-postasıyla alınan yeni ürün lisans süresine sunucu tarafında eklenir. Ardından <strong>Yenile</strong> düğmesine bas. Yeni sipariş ilk etkinleştirmeyi de başlatabilir.</p>
+          <h2 id="renewal-title">Erişimin otomatik açılır.</h2>
+          <p>Shopier ödemesi tamamlanıp sunucu bildirimi geldikten sonra <strong>Satın alımı kontrol et</strong> düğmesine bas. Hesabın aylık lisansına geçirilir; e-posta kodu veya sipariş numarası gerekmez.</p>
         </div>
       </aside>
 

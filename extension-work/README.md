@@ -1,18 +1,21 @@
 # Takipçi Paneli
 
-## 1.0.153 Ücretsiz hesap ve deneme sonrası aylık satın alma
+## 1.0.154 E-posta/parola hesabı ve ayrı aylık satın alma sayfası
+
+- Giriş ve ücretsiz hesap oluşturma e-posta/parola ile yapılır; satın alma sayfası bu hesaptan ayrıdır.
+- Shopier ödemesinde hesaba kayıtlı aynı e-posta kullanılmalıdır. Doğrulanmış ödeme, webhook üzerinden hesaba bağlanır; satın alma e-postası veya kodla ayrıca lisans etkinleştirilmez.
+- Ödeme sonrası “Satın alımı kontrol et” hesabın güncel aylık lisansını alır ve deneme erişimini ücretli erişimle değiştirir.
+- Ücretli aylık erişim lisanslı özellikleri ve cihaz kullanımını açar; aylık süresi ve Instagram'ın kendi istek sınırları devam eder.
 
 - Herkes e-posta doğrulamasıyla ücretsiz hesap açabilir; satın alma e-postası veya sipariş numarası gerekmez.
 - E-posta doğrulandıktan sonra 7 günlük deneme otomatik başlar ve kullanıcı doğrudan oturum açar.
-- Deneme süresi dolduğunda sunucu korumalı işlemleri durdurur; hesap ve lisans ekranları yalnızca aylık paketi satın alma bağlantısını gösterir.
+- Deneme süresi dolduğunda sunucu korumalı işlemleri durdurur; ayrı satın alma sayfası aylık paketi gösterir.
 - Yayındaki uzantıda `env.js` içindeki API adresi güncel, herkese açık HTTPS lisans sunucusunu göstermelidir; eski sunucu sürümleri hesap uç noktalarında 404 döndürebilir.
 
-## 1.0.152 Hesap ve lisans doğrulamasında sipariş numarası kaldırıldı
+## 1.0.152 Önceki lisans e-posta doğrulaması
 
-- Hesap oluşturma ve doğrudan lisans etkinleştirme sırasında kullanıcıdan
-  Shopier sipariş numarası istenmez.
-- Satın alma e-postasına gönderilen, 10 dakika geçerli 6 haneli kod
-  doğrulanmadan hesap veya cihaz lisansı oluşturulmaz.
+- Önceki sürümde satın alma sonrası e-posta koduyla lisans etkinleştiriliyordu.
+- Bu yöntem 1.0.154 sürümünde hesap girişi ve webhook ile otomatik lisans yenilemeyle değiştirildi.
 
 ## 1.0.150 Tüm uzantı işlemlerinde lisans doğrulaması
 
