@@ -84,3 +84,17 @@ mtime_ms = 1792084609140
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:1b3444b8-b9aa-48f1-8668-3cf76d564ef0/1c3b25e9-c93d-495e-a0ff-b26a72fc766c/457d3a7b-d388-4cc1-80a0-7e060a402a63"
 storage_version_token = "1792084615321823"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "_M_mDhF7jAwdcCU87HuFr"
+uri = "file://generated-artifacts/takipci-paneli-sunucu-uzanti-kaynak.zip"
+type = "unspecified"
+title = "Takipçi Paneli — Sunucu ve Uzantı ZIP"
+description = "Güncellenmiş self-hosted API sunucusu ve Chrome uzantısı kaynak paketi. Gerçek .env, SQLite veritabanı ve özel anahtarlar dahil değildir."
+logical_id = "eac379b4-63da-4a54-914b-491dbc6d5d5c"
+content_hash = "sha256:9a10716125eb25d1bd09c45ec2bf882fd419c6fa4d5bf288ac7128ecb8b00b3c"
+size = 471938
+mtime_ms = 1792184221383
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:25441b3b-d644-4015-85d9-f5465a12d6dc/eac379b4-63da-4a54-914b-491dbc6d5d5c/270c6e20-c9eb-4838-8a6f-55595d4ef230"
+storage_version_token = "1792184226904996"
+content_type = "application/octet-stream"
