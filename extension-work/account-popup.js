@@ -225,6 +225,7 @@
         <form class="account-form" id="account-register-form">
           <label class="account-field" for="account-email">E-posta<input class="account-input" id="account-email" name="email" type="email" autocomplete="email" required></label>
           <label class="account-field" for="account-password">Parola (en az 8 karakter)<input class="account-input" id="account-password" name="password" type="password" minlength="8" maxlength="256" autocomplete="new-password" required></label>
+          <label class="account-device-consent"><input name="deviceConsent" type="checkbox" required><span>Deneme hakkını korumak için bu bilgisayardan alınan cihaz kimliğinin özeti sunucuda saklanır. Uzantıyı silip yeniden kurmak denemeyi sıfırlamaz.</span></label>
           <button class="account-button primary" type="submit" ${api.busy ? "disabled" : ""}>${api.busy ? "Hesap oluşturuluyor…" : "Hesap oluştur"}</button>
         </form>
         <p class="account-message" data-account-message role="status"></p>
@@ -473,6 +474,7 @@
     try {
       apiBaseUrl = getFormServerUrl();
       if (password.length < 8) throw new Error("Parola en az 8 karakter olmalı.");
+        if (!form.get("deviceConsent")) throw new Error("Cihaz kimliği kullanımını kabul etmelisin.");
       permissionRequest = requestServerPermission(apiBaseUrl);
     } catch (error) {
       setMessage(error.message || "API sunucusuna bağlantı kurulamadı.", "error");
