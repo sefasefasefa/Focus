@@ -145,14 +145,14 @@ content_type = "application/octet-stream"
 id = "NA8JvDjVlHWhXyUng4JII"
 uri = "file://generated-artifacts/releases/takipci-license-api-updated.zip"
 type = "unspecified"
-title = "Takipçi Paneli lisans API’si — güncel sunucu ZIP’i"
-description = "Güncel self-hosted API kaynakları; .env, veritabanı ve node_modules içermiyor. Sunucuya aktarıp README’deki başlangıç adımlarını izleyin."
+title = "Takipçi Paneli lisans API’si — güncel"
+description = "Eşleşen sunucu paketi. 302 ana sayfa yönlendirmesi artık oturum durumu gibi etiketlenmiyor; .env, veritabanı ve node_modules içermez."
 logical_id = "3a4e2c4b-6657-4cd5-937e-0f12bc3c9048"
-content_hash = "sha256:1f9aa142af4bff183820d20e61793580b05a7bd6670c916cf90988a1a2cd065b"
-size = 28850
-mtime_ms = 1792245922463
-storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/3a4e2c4b-6657-4cd5-937e-0f12bc3c9048/28ae07a4-7eab-4c5c-8fa1-41b2208480d1"
-storage_version_token = "1792245935244854"
+content_hash = "sha256:cd8da16231e1c486289caef7b1516007277cdc61d731877c83e7bf494d9dd827"
+size = 28857
+mtime_ms = 1792246643823
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/3a4e2c4b-6657-4cd5-937e-0f12bc3c9048/9f7bb955-84cd-44db-ab89-ae1ebc014ba4"
+storage_version_token = "1792246654301080"
 content_type = "application/octet-stream"
 
 [[outputs]]
@@ -167,4 +167,18 @@ size = 409342
 mtime_ms = 1792246180419
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/87737b90-c156-465f-8848-e928951aa958/3b1aa203-396b-405e-ad54-3c7ea6bd471b"
 storage_version_token = "1792246185749375"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "L6dUInkF2l8-4NPEWePFS"
+uri = "file://generated-artifacts/releases/takipci-paneli-v1.0.161-local.zip"
+type = "unspecified"
+title = "Takipçi Paneli uzantısı v1.0.161 — yerel API"
+description = "current_user başlangıç isteği artık lisans doğrulaması sonrası tarayıcıdaki ds_user_id ile çözülüyor; bu nedenle bu kontrolün Instagram sunucusunda 302 alması önlenir. Yerel API ayarı korunmuştur."
+logical_id = "df4a6a10-c09e-4fd8-942f-887ab4733506"
+content_hash = "sha256:d396c8fb550a5de3bf48c69fe0378b7b577ad9ccf6594027b90d7a1b44aca2da"
+size = 409572
+mtime_ms = 1792246643675
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/df4a6a10-c09e-4fd8-942f-887ab4733506/bd839d7b-ac36-4fbd-b1f4-582a554cdfca"
+storage_version_token = "1792246653452460"
 content_type = "application/octet-stream"

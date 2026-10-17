@@ -622,8 +622,11 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
       message = 'Instagram isteği giriş sayfasına yönlendirdi. Aynı tarayıcı profilinde Instagram’a giriş yapın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
     } else if (redirectType === 'verification') {
       message = 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
-    } else if (redirectType === 'session') {
-      message = 'Instagram oturum kontrolü ana sayfaya yönlendirildi (HTTP 302). Lisans merkezinde oturum bağlı görünüyor; bu yanıt sunucudaki oturumu silip yeniden bağlamanız gerektiğini göstermez.';
+    } else if (
+      redirectType === 'api_home_redirect' ||
+      redirectType === 'session'
+    ) {
+      message = 'Instagram API isteği ana sayfaya yönlendirildi (HTTP 302). Bu yanıt, lisans merkezindeki sunucu oturumunun bağlı olup olmadığını göstermez; bağlı oturumu silmeyin.';
     } else if (redirectType === 'external') {
       message = 'Instagram isteği Instagram dışındaki bir adrese yönlendirildi. Güvenlik için yönlendirme takip edilmedi.';
     } else if (/login_required|checkpoint_required/i.test(responseText)) {
@@ -3710,6 +3713,9 @@ async function execRestInTab(tabId, url, method, bodyObj) {
 
 // ── Ana API çağrısı (sekme hatalarında yeniden dener) ─────────────────
 async function apiCallUnqueued(endpoint, params, method = 'GET', body) {
+  if (isCurrentUserIdentityRequest(endpoint, method)) {
+    return resolveCurrentUserIdentityFromSession();
+  }
   return instagramServerRequest(endpoint, params, method, body);
 
   // Retained below only as historical context; all active API calls now use
@@ -3912,10 +3918,41 @@ async function apiCallUnqueued(endpoint, params, method = 'GET', body) {
   }
 }
 
+function isCurrentUserIdentityRequest(endpoint, method) {
+  if (String(method || 'GET').toUpperCase() !== 'GET') return false;
+  try {
+    const url = new URL(String(endpoint || ''), 'https://www.instagram.com');
+    return url.origin === 'https://www.instagram.com' &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      url.pathname === '/api/v1/accounts/current_user/';
+  } catch {
+    return false;
+  }
+}
+
+async function resolveCurrentUserIdentityFromSession() {
+  await requireActiveLicense();
+  const userId = await getInstagramSessionUserId();
+  if (!userId) {
+    throw new Error('Instagram kullanıcı kimliği bulunamadı — instagram.com sekmesini yenileyin');
+  }
+  return {
+    user: {
+      pk: userId,
+      id: userId,
+      username: '',
+    },
+  };
+}
+
 async function apiCall(endpoint, params, method = 'GET', body) {
   return withInstagramRequestSlot(
     `api:${method}:${endpoint}`,
-    () => instagramServerRequest(endpoint, params, method, body),
+    () => isCurrentUserIdentityRequest(endpoint, method)
+      ? resolveCurrentUserIdentityFromSession()
+      : instagramServerRequest(endpoint, params, method, body),
   );
 }
 

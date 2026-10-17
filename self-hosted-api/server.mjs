@@ -599,7 +599,7 @@ async function handleInstagramRequest(request, response) {
         redirectUrl.pathname === "/" &&
         normalized.url.pathname === "/api/v1/accounts/current_user/"
       ) {
-        redirectType = "session";
+        redirectType = "api_home_redirect";
       }
     } catch {
       // Do not expose or trust a malformed upstream redirect target.
