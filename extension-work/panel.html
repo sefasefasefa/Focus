@@ -375,28 +375,6 @@
       }
       body > #root nav > button span,
       body > #root nav > a span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-      #instagram-session-sync-status {
-        position: fixed;
-        z-index: 10002;
-        top: 54px;
-        left: 10px;
-        right: 10px;
-        padding: 10px 12px;
-        border: 1px solid rgba(192,132,252,.35);
-        border-radius: 10px;
-        background: rgba(21,21,30,.98);
-        color: #e5e7eb;
-        font: 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        box-shadow: 0 5px 20px rgba(0,0,0,.3);
-      }
-      #instagram-session-sync-status[data-kind="error"] { border-color: rgba(251,113,133,.5); }
-      #instagram-session-sync-status[data-kind="success"] { border-color: rgba(52,211,153,.5); }
-      #instagram-session-sync-status a {
-        display: inline-block;
-        margin-left: 8px;
-        color: #d8b4fe;
-        font-weight: 700;
-      }
     </style>
   </head>
   <body>
@@ -406,7 +384,6 @@
       style="position:fixed;z-index:10001;top:10px;right:10px;display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid rgba(192,132,252,.42);border-radius:10px;background:rgba(21,21,30,.96);color:#e9d5ff;font:700 11px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-decoration:none;box-shadow:0 5px 20px rgba(0,0,0,.28);"
     >Lisans ve paketler <span aria-hidden="true">→</span></a>
     <div id="root"></div>
-    <div id="instagram-session-sync-status" role="status" aria-live="polite" hidden></div>
 
     <!-- Dashboard Analytics Overlay — alt nav alanını kapatmaz (bottom: 60px) -->
     <div id="dash-overlay">
@@ -579,6 +556,5 @@
     <script src="./readonly-like-status.js"></script>
     <script src="./settings-card.js" defer></script>
     <script type="module" src="./gender-classifier.js"></script>
-    <script src="./instagram-session-autolink.js"></script>
   </body>
 </html>
