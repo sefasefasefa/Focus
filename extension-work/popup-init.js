@@ -48,8 +48,8 @@
   });
 })();
 
-// When the user opens the extension, automatically link the current
-// Instagram session if this device already has an active license.
+// When the user opens the extension, check local Instagram login availability.
+// Cookies are sent to the API only alongside an individual licensed operation.
 (function () {
   if (!globalThis.chrome?.runtime?.sendMessage) return;
   try {

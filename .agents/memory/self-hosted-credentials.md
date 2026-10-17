@@ -7,11 +7,11 @@ API-provider keys, license-signing/data secrets, and payment/webhook credentials
 
 Every extension operation and operational data-ingestion message must require a fresh server-side license check; the server validates the signed device token, revocation/payment status, and license expiry on each protected API request. Only public plan/status reads and local logout/cleanup are exempt.
 
-With an active license, automatically link and synchronize the Instagram session from the user's browser when the extension opens, without a separate consent checkbox. Encrypt and isolate it by license order and device on the server; do not download raw session cookies back into the extension.
+Instagram cookies are read from the current browser session and sent with each licensed operation. The API uses them only for that request and never stores or looks up a server-side Instagram session.
 
-**Why:** The user says extension users expect server-backed Instagram features to work automatically and explicitly asked to remove the separate consent step. License validation and per-device isolation still limit who can link and use a session.
+**Why:** The user explicitly chose request-scoped browser session data so the API does not search for or retain an Instagram session.
 
-**How to apply:** Gate every extension message that reads, writes, or acts on operational data through a fresh server license check; protect every business API route with token, revocation/payment, device, and expiry validation. Automatically link only while the license is active and the browser has an Instagram session. Keep per-order/device isolation, encryption, and server-side Instagram request execution; never put provider or payment secrets in extension files or copy raw Instagram cookies back to the extension.
+**How to apply:** Keep Instagram cookies out of persistent storage and logs. Read the current browser cookies for each Instagram API request and include them in that request body. Continue enforcing license, revocation/payment, device, and expiry checks server-side. Keep provider and payment secrets on the API server.
 
 The extension must not ask users for a Shopier order number during account registration or license activation. Use the paid order recorded by the signed webhook and verify mailbox access for its buyer email.
 
@@ -25,11 +25,11 @@ Each email account receives one 7-day free trial after email verification. After
 
 **How to apply:** Start the trial when verified signup creates the account, enforce expiry server-side on every protected operation, and show only a valid 30-day checkout option after expiry.
 
-The 7-day trial is tied only to a verified email address. Do not read, send, or store MAC addresses, and do not use hardware/device history or device counts to control trial eligibility. Preserve existing account, license, and Instagram sessions while removing legacy MAC and trial-history data.
+The 7-day trial is tied only to a verified email address. Do not read, send, or store MAC addresses, and do not use hardware/device history or device counts to control trial eligibility. Preserve account sessions and active licenses while removing legacy MAC/trial-history data and obsolete stored Instagram cookies.
 
-**Why:** The user explicitly asked to remove all MAC checks and warnings, chose email-only trial eligibility, and asked to preserve current sessions.
+**Why:** The user chose verified-email-only trial eligibility and later changed Instagram credentials to request-scoped data that the API must not retain.
 
-**How to apply:** Start one 7-day trial after verifying an email. Remove native hardware-identity collection, MAC consent, device-history checks, and trial device caps. Purge legacy MAC/trial-history records without clearing account sessions, active license-device records, or Instagram sessions; retain existing session IDs and use random per-install IDs for new sessions.
+**How to apply:** Start one 7-day trial after verifying an email. Remove native hardware-identity collection, MAC consent, device-history checks, and trial device caps. Purge legacy MAC/trial-history records and old persisted Instagram cookies without clearing account sessions or active license-device records; retain existing account session IDs and use random per-install IDs for new sessions.
 
 Account access uses a normal email-and-password login; purchases happen on a separate monthly checkout page. The buyer must use the account email so the signed payment webhook can grant the paid entitlement to that account. After payment, refresh the account entitlement instead of asking for a purchase email code or order number.
 

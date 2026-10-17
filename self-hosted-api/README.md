@@ -34,7 +34,7 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 7. Dağıtacağın uzantının `extension-work/env.js` dosyasındaki `LICENSE_API_BASE_URL` değerini kendi herkese açık HTTPS API adresine ayarla; `127.0.0.1` yalnızca yerel geliştirme içindir. Uzantıda **Ücretsiz hesap oluştur** seçeneğiyle e-posta ve parola belirle. Sunucu e-posta doğrulama kodu gönderir; kod onaylanınca hesap açılır, oturum başlar ve 7 günlük ücretsiz deneme başlar. Denemeyi başlatmak için satın alma veya sipariş numarası gerekmez. İlk bağlantıda uzantıya API sunucusu erişim izni ver. Sonraki girişlerde normal e-posta ve parola kullanılır; parolalar sunucuda scrypt ile özetlenir.
 8. 7 günün sonunda korumalı uzantı işlemleri durur. Devam etmek için yalnızca 30 günlük aylık Shopier ürünlerinden biri satın alınmalıdır. Aylık ürünü `SHOPIER_LICENSE_PRODUCTS` içinde `30` gün olarak eşleştir ve `SHOPIER_CHECKOUT_URL` (veya ürün bazında `SHOPIER_PLAN_DETAILS`) ile ödeme bağlantısını tanımla. Uzantıdaki ayrı **Aylık satın alma** sayfasından Shopier'e geçilir; ödeme sırasında hesaba kayıtlı aynı e-posta kullanılmalıdır. İmzalı webhook ödemeyi hesaba bağlar. Satın alım sonrasında **Satın alımı kontrol et** denildiğinde ücretli lisans hesaba verilir; satın alma e-postası koduyla ayrıca etkinleştirme gerekmez.
 
-`SHOPIER_LICENSE_PRODUCTS` ayarlanana kadar ürün webhook'u lisans oluşturmaz. Sadece yapılandırılmış, 30 günlük ürünler ve `paymentStatus=paid` siparişleri kabul edilir; yıllık/ömür boyu ürünler devre dışıdır. Aynı webhook tekrar gelirse ikinci lisans oluşturulmaz. Doğrulanan her e-posta adresi için tek bir 7 günlük deneme açılır; eski cihaz geçmişi deneme uygunluğunu etkilemez ve cihaz sayısı sınırı uygulanmaz. Daha önce doğrulanmış fakat deneme kaydı bulunmayan hesapta deneme sonraki giriş/oturum yenilemede başlar; süresi dolmuş deneme yeniden başlatılmaz. Eski deneme-geçmişi kayıtları sunucu açılışında temizlenir; aktif hesap, lisans ve Instagram oturumları korunur.
+`SHOPIER_LICENSE_PRODUCTS` ayarlanana kadar ürün webhook'u lisans oluşturmaz. Sadece yapılandırılmış, 30 günlük ürünler ve `paymentStatus=paid` siparişleri kabul edilir; yıllık/ömür boyu ürünler devre dışıdır. Aynı webhook tekrar gelirse ikinci lisans oluşturulmaz. Doğrulanan her e-posta adresi için tek bir 7 günlük deneme açılır; eski cihaz geçmişi deneme uygunluğunu etkilemez ve cihaz sayısı sınırı uygulanmaz. Daha önce doğrulanmış fakat deneme kaydı bulunmayan hesapta deneme sonraki giriş/oturum yenilemede başlar; süresi dolmuş deneme yeniden başlatılmaz. Eski deneme geçmişi ve eski sunucuya kaydedilmiş Instagram oturum kopyaları yeni sürümün ilk açılışında temizlenir; hesap ve lisans kayıtları korunur.
 
 ## Uç noktalar
 
@@ -51,8 +51,7 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 - `GET/POST /api/account/password/reset` — sıfırlama sayfası ve parola yenileme
 - `DELETE /api/account/session` — bu cihazdaki hesabı çıkarma ve lisans token'larını geçersiz kılma
 - `POST /api/ai/gender` — aktif lisansla AI sınıflandırması
-- `GET/POST/PATCH/DELETE /api/instagram/session` — lisans/cihaz oturumunu görme, otomatik bağlama/güncelleme ve silme
-- `POST /api/instagram/request` — lisanslı cihazın Instagram REST/GraphQL isteğini kendi oturumu ile iletme
+- `POST /api/instagram/request` — lisanslı cihazın o işlem için gönderdiği güncel tarayıcı oturumuyla Instagram REST/GraphQL isteğini iletme; oturum API veritabanında saklanmaz
 
 Hesap ve lisans oturumlarını sunucu, uzantının oluşturduğu oturum kimliğiyle ilişkilendirir; bu kimlik donanımdan okunmaz ve deneme hakkını sınırlamak için kullanılmaz. Aylık lisansın 30 günlük süresi ve Instagram'ın kendi istek sınırları devam eder. Lisansı iptal etmek için:
 
@@ -68,7 +67,7 @@ Hesap oturumları 90 gün geçerlidir. Parola sıfırlama bağlantısı 1 saat s
 - `.env` ve `data/` klasörü yedeklenmeli, fakat eklentiye veya herkese açık ZIP'e eklenmemeli.
 - Shopier webhook token'ı, AI anahtarları ve imzalama sırları sadece bu sunucuda kalmalı.
 - SMTP parolası yalnızca sunucudaki `.env` dosyasında veya sunucunun gizli ortam değişkenlerinde kalmalı; eklenti ZIP'ine koyma.
-- Etkin lisansı olan uzantı Instagram oturum çerezlerini açılışta ve oturum değişikliklerinde otomatik olarak bu sunucuya gönderir. Uzaktaki sunucu için HTTPS kullanın. Çerezler her lisans/cihaz kaydı için AES-256-GCM ile şifrelenerek diskte saklanır; ham değerler yalnızca istek işlenirken bellekte açılır.
-- Eklenti tarayıcıdaki güncel çerezleri her Instagram API isteğinde, çerez değiştiğinde ve beş dakikada bir sunucuya eşitler. Oturum geçersizleşirse tarayıcıda Instagram'a yeniden giriş gerekir; `doc_id` yenilemek oturumun yerini tutmaz.
-- Sunucudaki Instagram oturumu lisans siparişi ve cihaz kimliğine bağlıdır. Aynı cihazda başka Instagram hesabına geçmek için önce oturum bağlantısını silip yeni hesapla tekrar bağlanmalıdır.
+- Eklenti oturum çerezlerini her Instagram API isteği sırasında tarayıcıdan okur ve sadece o isteğin gövdesinde HTTPS üzerinden API’ye yollar. API bunları yalnızca bellekte kullanır; veritabanına yazmaz ve sonraki isteklerde önceki bir oturumu aramaz.
+- Eski sürümlerin şifreli Instagram oturum kopyaları yükseltme sonrası ilk API başlangıcında silinir. Yeni akışta sunucu oturumu bağlama, eşitleme veya kaldırma uç noktası yoktur.
+- Oturum geçersizleşirse tarayıcıda Instagram'a yeniden giriş gerekir; `doc_id` yenilemek oturumun yerini tutmaz.
 - Eklenti kodu istemci tarafında olduğundan cracklenebilir. Sunucu API'si, lisanslar ve anahtarlar korunur; yerel Instagram işlemleri için mutlak kopya/atlatma koruması garanti edilemez.

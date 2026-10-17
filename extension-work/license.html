@@ -69,7 +69,7 @@
         <div class="section-heading">
           <p class="section-kicker">INSTAGRAM OTURUMU</p>
           <h2 id="session-title">Instagram oturumu</h2>
-          <p>Lisansın etkinse ve Instagram’a giriş yaptıysan uzantı oturumunu açılışta otomatik olarak sunucuya bağlar. Oturum çerezleri sunucuda şifreli saklanır; Instagram parolan gönderilmez.</p>
+          <p>Uzantı, Instagram oturum bilgilerini her işlem öncesinde tarayıcıdan okur ve yalnızca o işlem için API’ye gönderir. API bu bilgileri kaydetmez.</p>
         </div>
         <div class="status-panel" id="instagram-session-status" role="status" aria-live="polite">
           <span class="status-indicator" aria-hidden="true"></span>
@@ -79,11 +79,9 @@
           </div>
         </div>
         <div class="status-actions">
-          <button class="button button-primary" id="instagram-session-link" type="button" disabled>Şimdi yeniden dene</button>
-          <button class="button button-quiet" id="instagram-session-unlink" type="button" disabled>Sunucudaki oturumu sil</button>
+          <button class="button button-primary" id="instagram-session-check" type="button" disabled>Tarayıcı oturumunu kontrol et</button>
         </div>
-        <p class="privacy-note">Sunucudaki oturumu silmek otomatik bağlantıyı duraklatır. Yeniden bağlamak için “Şimdi yeniden dene”ye bas. Instagram’dan çıkış yapıp tekrar giriş yaparsan ve bağlantı duraklatılmamışsa oturum otomatik bağlanır.</p>
-        <p class="form-feedback" id="instagram-session-feedback" role="status" aria-live="polite"></p>
+        <p class="privacy-note">Instagram çerezleri sunucu veritabanına yazılmaz ve sonraki işlemler için saklanmaz.</p>
       </section>
 
       <section class="plans-section" aria-labelledby="plans-title">

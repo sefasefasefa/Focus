@@ -7,12 +7,9 @@ import { createAccountHandlers } from "./accounts.mjs";
 import { licensePlans } from "./plans.mjs";
 import { recordPaidOrder } from "./orders.mjs";
 import {
-  decryptInstagramSession,
-  encryptInstagramSession,
   instagramCookieHeader,
-  parseInstagramSessionKey,
   sanitizeInstagramSession,
-} from "./instagram-sessions.mjs";
+} from "./instagram-session-input.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.BIND_HOST || "127.0.0.1";
@@ -28,6 +25,7 @@ const db = new DatabaseSync(DB_PATH);
 db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
+  PRAGMA secure_delete = ON;
   CREATE TABLE IF NOT EXISTS shopier_orders (
     order_id TEXT PRIMARY KEY,
     product_id TEXT NOT NULL,
@@ -50,21 +48,6 @@ db.exec(`
     order_id TEXT PRIMARY KEY,
     license_order_id TEXT NOT NULL REFERENCES shopier_orders(order_id),
     paid_at INTEGER NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS instagram_sessions (
-    order_id TEXT NOT NULL,
-    device_id TEXT NOT NULL,
-    instagram_user_id TEXT NOT NULL,
-    ciphertext TEXT NOT NULL,
-    iv TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    consented_at INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    last_request_at INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (order_id, device_id),
-    FOREIGN KEY (order_id, device_id)
-      REFERENCES license_devices(order_id, device_id) ON DELETE CASCADE
   );
   CREATE TABLE IF NOT EXISTS account_users (
     email_hash TEXT PRIMARY KEY,
@@ -106,12 +89,16 @@ const verificationColumns = db.prepare("PRAGMA table_info(purchase_email_verific
 if (verificationColumns.includes("mac_hashes")) {
   db.exec("ALTER TABLE purchase_email_verifications DROP COLUMN mac_hashes");
 }
-// Legacy trial-history data is no longer used. Removing it does not affect
-// account, license, or Instagram sessions stored in their separate tables.
+// Legacy trial history and server-persisted Instagram sessions are obsolete.
+// Account, license, and account-session data remain untouched.
 db.exec("DROP TABLE IF EXISTS license_device_history");
 db.exec("DROP TABLE IF EXISTS license_mac_history");
+// Instagram cookies are supplied per operation and are never retained by the API.
+db.exec("DROP TABLE IF EXISTS instagram_sessions");
+db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 
 const rateLimits = new Map();
+const instagramRequestTimes = new Map();
 
 function productLicenseTerms() {
   return new Map(PLANS.map(plan => [plan.productId, plan.days]));
@@ -242,16 +229,6 @@ function requireConfiguredLicenseSecrets() {
   }
 }
 
-function getInstagramSessionKey() {
-  try {
-    return parseInstagramSessionKey(process.env.INSTAGRAM_SESSION_ENCRYPTION_KEY);
-  } catch {
-    throw Object.assign(new Error("Instagram oturum şifreleme anahtarı sunucuda ayarlanmamış."), {
-      status: 503,
-    });
-  }
-}
-
 function authenticateLicense(request) {
   const token = decodeAccessToken(getBearerToken(request));
   if (!token) {
@@ -283,115 +260,6 @@ function authenticateLicense(request) {
     UPDATE license_devices SET last_seen_at = ? WHERE order_id = ? AND device_id = ?
   `).run(Date.now(), token.orderId, token.deviceId);
   return { token, order };
-}
-
-async function handleInstagramSession(request, response) {
-  const { token } = authenticateLicense(request);
-  const key = `${token.orderId}:${token.deviceId}`;
-
-  if (request.method === "GET") {
-    const row = db.prepare(`
-      SELECT instagram_user_id, created_at, updated_at
-      FROM instagram_sessions WHERE order_id = ? AND device_id = ?
-    `).get(token.orderId, token.deviceId);
-    return writeJson(response, 200, {
-      ok: true,
-      linked: Boolean(row),
-      instagramUserId: row?.instagram_user_id || null,
-      linkedAt: row ? Number(row.created_at) : null,
-      updatedAt: row ? Number(row.updated_at) : null,
-    });
-  }
-
-  if (request.method === "DELETE") {
-    db.prepare(`
-      DELETE FROM instagram_sessions WHERE order_id = ? AND device_id = ?
-    `).run(token.orderId, token.deviceId);
-    return writeJson(response, 200, { ok: true, linked: false });
-  }
-
-  if (request.method !== "POST" && request.method !== "PATCH") {
-    return writeJson(response, 405, { ok: false, error: "Method not allowed." });
-  }
-  if (request.method === "POST" && isRateLimited(request, "instagram-session-link")) {
-    throw Object.assign(new Error("Çok sık oturum bağlantısı denendi; daha sonra tekrar deneyin."), {
-      status: 429,
-    });
-  }
-
-  const input = await readJson(request, 32 * 1024);
-  const session = sanitizeInstagramSession(input);
-  const existing = db.prepare(`
-    SELECT instagram_user_id, created_at
-    FROM instagram_sessions WHERE order_id = ? AND device_id = ?
-  `).get(token.orderId, token.deviceId);
-  if (request.method === "PATCH" && !existing) {
-    throw Object.assign(new Error("Instagram oturum kaydı bulunamadı; yeniden bağlamayı deneyin."), {
-      status: 409,
-    });
-  }
-  if (existing) {
-    if (String(existing.instagram_user_id) !== session.instagramUserId) {
-      throw Object.assign(new Error("Instagram hesabı değişmiş. Önce lisans sayfasından sunucudaki eski oturumu silin."), {
-        status: 409,
-      });
-    }
-    session.linkedAt = Number(existing.created_at);
-  } else {
-    session.linkedAt = Date.now();
-  }
-  const encrypted = encryptInstagramSession(
-    session,
-    getInstagramSessionKey(),
-    key,
-  );
-  const now = Date.now();
-  if (request.method === "PATCH") {
-    db.prepare(`
-      UPDATE instagram_sessions SET
-        ciphertext = ?, iv = ?, tag = ?, updated_at = ?
-      WHERE order_id = ? AND device_id = ? AND instagram_user_id = ?
-    `).run(
-      encrypted.ciphertext,
-      encrypted.iv,
-      encrypted.tag,
-      now,
-      token.orderId,
-      token.deviceId,
-      session.instagramUserId,
-    );
-  } else {
-    db.prepare(`
-      INSERT INTO instagram_sessions (
-        order_id, device_id, instagram_user_id, ciphertext, iv, tag,
-        consented_at, created_at, updated_at, last_request_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-      ON CONFLICT(order_id, device_id) DO UPDATE SET
-      instagram_user_id = excluded.instagram_user_id,
-      ciphertext = excluded.ciphertext,
-      iv = excluded.iv,
-      tag = excluded.tag,
-      consented_at = excluded.consented_at,
-      updated_at = excluded.updated_at,
-      last_request_at = 0
-    `).run(
-      token.orderId,
-      token.deviceId,
-      session.instagramUserId,
-      encrypted.ciphertext,
-      encrypted.iv,
-      encrypted.tag,
-      session.linkedAt,
-      now,
-      now,
-    );
-  }
-  return writeJson(response, request.method === "PATCH" ? 200 : 201, {
-    ok: true,
-    linked: true,
-    instagramUserId: session.instagramUserId,
-    linkedAt: session.linkedAt,
-  });
 }
 
 function normalizeInstagramProxyRequest(input) {
@@ -465,76 +333,37 @@ function normalizeInstagramProxyRequest(input) {
   return { method, url, headers, body };
 }
 
-async function handleInstagramRequest(request, response) {
-  const { token } = authenticateLicense(request);
-  const input = await readJson(request, 600 * 1024);
-  const normalized = normalizeInstagramProxyRequest(input);
-  const key = `${token.orderId}:${token.deviceId}`;
-  let row = db.prepare(`
-    SELECT instagram_user_id, ciphertext, iv, tag, last_request_at
-    FROM instagram_sessions WHERE order_id = ? AND device_id = ?
-  `).get(token.orderId, token.deviceId);
-  if (!row) {
-    throw Object.assign(new Error("Instagram oturumu sunucuya bağlanmamış. Lisans sayfasından bağlayın."), {
-      status: 409,
-    });
-  }
-
-  if (input?.session && typeof input.session === "object") {
-    const latestSession = sanitizeInstagramSession(input.session);
-    if (latestSession.instagramUserId !== String(row.instagram_user_id)) {
-      throw Object.assign(new Error("Instagram hesabı değişmiş. Önce oturum bağlantısını kaldırıp yeniden bağlayın."), {
-        status: 409,
-      });
-    }
-    const encrypted = encryptInstagramSession(latestSession, getInstagramSessionKey(), key);
-    const refreshed = db.prepare(`
-      UPDATE instagram_sessions SET ciphertext = ?, iv = ?, tag = ?, updated_at = ?
-      WHERE order_id = ? AND device_id = ? AND instagram_user_id = ?
-    `).run(
-      encrypted.ciphertext,
-      encrypted.iv,
-      encrypted.tag,
-      Date.now(),
-      token.orderId,
-      token.deviceId,
-      latestSession.instagramUserId,
-    );
-    if (refreshed.changes !== 1) {
-      throw Object.assign(new Error("Instagram oturumu güncellenemedi."), { status: 409 });
-    }
-    row = db.prepare(`
-      SELECT instagram_user_id, ciphertext, iv, tag, last_request_at
-      FROM instagram_sessions WHERE order_id = ? AND device_id = ?
-    `).get(token.orderId, token.deviceId);
-  }
-
+function enforceInstagramRequestGap(token, method, response) {
   const now = Date.now();
-  const minimumGap = normalized.method === "POST" ? 3000 : 1500;
-  const update = db.prepare(`
-    UPDATE instagram_sessions SET last_request_at = ?
-    WHERE order_id = ? AND device_id = ? AND last_request_at <= ?
-  `).run(now, token.orderId, token.deviceId, now - minimumGap);
-  if (update.changes !== 1) {
-    const retryAfterMs = Math.max(250, minimumGap - (now - Number(row.last_request_at)));
+  const minimumGap = method === "POST" ? 3000 : 1500;
+  const key = `${token.orderId}:${token.deviceId}`;
+  const lastRequestAt = instagramRequestTimes.get(key) || 0;
+  if (lastRequestAt + minimumGap > now) {
+    const retryAfterMs = lastRequestAt + minimumGap - now;
     response.setHeader("retry-after", String(Math.ceil(retryAfterMs / 1000)));
     throw Object.assign(new Error("Instagram istekleri arasında kısa bir bekleme gerekli."), {
       status: 429,
     });
   }
-
-  let session;
-  try {
-    session = decryptInstagramSession(
-      row,
-      getInstagramSessionKey(),
-      key,
-    );
-  } catch {
-    throw Object.assign(new Error("Instagram oturumu sunucuda açılamadı; yeniden bağlayın."), {
-      status: 503,
-    });
+  if (instagramRequestTimes.size > 10_000) {
+    for (const [entry, timestamp] of instagramRequestTimes) {
+      if (timestamp + 10 * 60 * 1000 <= now) instagramRequestTimes.delete(entry);
+    }
+    if (instagramRequestTimes.size > 10_000) {
+      throw Object.assign(new Error("Instagram istek sınırı geçici olarak dolu."), {
+        status: 429,
+      });
+    }
   }
+  instagramRequestTimes.set(key, now);
+}
+
+async function handleInstagramRequest(request, response) {
+  const { token } = authenticateLicense(request);
+  const input = await readJson(request, 600 * 1024);
+  const normalized = normalizeInstagramProxyRequest(input);
+  const session = sanitizeInstagramSession(input?.session);
+  enforceInstagramRequestGap(token, normalized.method, response);
 
   const headers = new Headers({
     accept: "*/*",
@@ -1027,12 +856,6 @@ async function handleRequest(request, response) {
   }
   if (request.method === "POST" && url.pathname === "/api/ai/gender") {
     return await handleAiGender(request, response);
-  }
-  if (
-    url.pathname === "/api/instagram/session" &&
-    ["GET", "POST", "PATCH", "DELETE"].includes(request.method)
-  ) {
-    return await handleInstagramSession(request, response);
   }
   if (request.method === "POST" && url.pathname === "/api/instagram/request") {
     return await handleInstagramRequest(request, response);

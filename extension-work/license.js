@@ -17,9 +17,7 @@
     sessionPanel: document.getElementById("instagram-session-status"),
     sessionLabel: document.getElementById("instagram-session-label"),
     sessionDetail: document.getElementById("instagram-session-detail"),
-    sessionLinkButton: document.getElementById("instagram-session-link"),
-    sessionUnlinkButton: document.getElementById("instagram-session-unlink"),
-    sessionFeedback: document.getElementById("instagram-session-feedback"),
+    sessionCheckButton: document.getElementById("instagram-session-check"),
     refreshPlans: document.getElementById("refresh-plans"),
     plansState: document.getElementById("plans-state"),
     plansTitle: document.getElementById("plans-state-title"),
@@ -32,7 +30,7 @@
   let purchaseBusy = false;
   let sessionBusy = false;
   let licenseActive = false;
-  let sessionLinked = false;
+  let sessionAvailable = false;
   let licenseApiBaseUrl = "";
   let trialExpiredNeedsPurchase = false;
   let accountSession = null;
@@ -70,22 +68,13 @@
     elements.sessionPanel.dataset.state = state;
   }
 
-  function setInstagramSessionFeedback(message, kind = "error") {
-    elements.sessionFeedback.textContent = message;
-    if (message) elements.sessionFeedback.dataset.kind = kind;
-    else delete elements.sessionFeedback.dataset.kind;
-  }
-
   function renderBusy() {
     elements.refreshStatus.disabled = statusBusy || !runtimeAvailable;
     elements.refreshPlans.disabled = configBusy || !runtimeAvailable;
     elements.checkPurchaseButton.disabled =
       purchaseBusy || !runtimeAvailable || !accountSession ||
       Number(accountSession.sessionExpiresAt) <= Date.now();
-    elements.sessionLinkButton.disabled =
-      sessionBusy || !runtimeAvailable || !licenseActive || sessionLinked;
-    elements.sessionUnlinkButton.disabled =
-      sessionBusy || !runtimeAvailable || !licenseActive || !sessionLinked;
+    elements.sessionCheckButton.disabled = sessionBusy || !runtimeAvailable || !licenseActive;
     elements.refreshStatus.setAttribute("aria-busy", String(statusBusy));
     elements.refreshPlans.setAttribute("aria-busy", String(configBusy));
     elements.checkPurchaseButton.setAttribute("aria-busy", String(purchaseBusy));
@@ -376,99 +365,45 @@
 
   async function refreshInstagramSessionStatus() {
     if (!licenseActive) {
-      sessionLinked = false;
+      sessionAvailable = false;
       setInstagramSessionStatus("Lisans gerekli", "Önce lisansını etkinleştir.", "inactive");
       renderBusy();
       return;
     }
+    if (sessionBusy) return;
+    sessionBusy = true;
+    renderBusy();
     try {
-      const result = await sendMessage({ type: "INSTAGRAM_SESSION_AUTO_LINK" });
+      const result = await sendMessage({ type: "INSTAGRAM_SESSION_STATUS" });
       if (!result || result.ok !== true) {
         if (/Instagram oturumu bulunamadı/i.test(String(result?.error || ""))) {
-          sessionLinked = false;
+          sessionAvailable = false;
           setInstagramSessionStatus(
             "Instagram girişi bekleniyor",
-            "Instagram’a giriş yaptığında uzantı oturumunu otomatik bağlayacak.",
+            "Instagram’a giriş yaptıktan sonra oturum bilgisi işlemler sırasında tarayıcıdan okunur.",
             "inactive",
           );
           return;
         }
         throw new Error(typeof result?.error === "string" ? result.error : "Oturum durumu alınamadı.");
       }
-      sessionLinked = result.linked === true;
-      if (result.reason === "user-unlinked") {
+      sessionAvailable = result.available === true;
+      if (sessionAvailable) {
         setInstagramSessionStatus(
-          "Instagram oturumu bağlı değil",
-          "Otomatik bağlantı durduruldu. Yeniden bağlamak için aşağıdaki düğmeye bas.",
-          "inactive",
-        );
-        return;
-      }
-      if (sessionLinked) {
-        setInstagramSessionStatus(
-          "Instagram oturumu bağlı",
-          `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Oturum otomatik güncellenir.`,
+          "Tarayıcı oturumu hazır",
+          `Hesap kimliği: ${result.instagramUserId || "bulunamadı"}. API oturumu saklamaz.`,
           "active",
         );
       } else {
-        setInstagramSessionStatus("Instagram oturumu bağlı değil", "Instagram’a giriş yaptığında uzantı oturumunu otomatik bağlayacak.", "inactive");
+        setInstagramSessionStatus(
+          "Instagram girişi bekleniyor",
+          "Instagram’a giriş yaptıktan sonra oturum bilgisi işlemler sırasında tarayıcıdan okunur.",
+          "inactive",
+        );
       }
     } catch (error) {
-      sessionLinked = false;
-      setInstagramSessionStatus("Oturum durumu alınamadı", error?.message || "Sunucu bağlantısını kontrol et.", "error");
-    } finally {
-      renderBusy();
-    }
-  }
-
-  async function linkInstagramSession() {
-    if (sessionBusy) return;
-    sessionBusy = true;
-    setInstagramSessionFeedback("");
-    setInstagramSessionStatus("Oturum bağlanıyor", "Güncel Instagram oturumu sunucuya gönderiliyor.", "loading");
-    renderBusy();
-    try {
-      const apiBaseUrl = getApiBaseUrl();
-      await ensureServerPermission(apiBaseUrl, true);
-      await saveUrl(apiBaseUrl);
-      const result = await sendMessage({ type: "INSTAGRAM_SESSION_LINK" });
-      if (!result || result.ok !== true || result.linked !== true) {
-        throw new Error(typeof result?.error === "string" ? result.error : "Instagram oturumu bağlanamadı.");
-      }
-      sessionLinked = true;
-      setInstagramSessionFeedback("Instagram oturumu sunucuya bağlandı.", "success");
-      setInstagramSessionStatus(
-        "Instagram oturumu bağlı",
-        `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Oturum otomatik güncellenir.`,
-        "active",
-      );
-    } catch (error) {
-      sessionLinked = false;
-      setInstagramSessionStatus("Oturum bağlanamadı", error?.message || "Instagram oturumunu ve API bağlantısını kontrol et.", "error");
-      setInstagramSessionFeedback(error?.message || "Instagram oturumu bağlanamadı.");
-    } finally {
-      sessionBusy = false;
-      renderBusy();
-    }
-  }
-
-  async function unlinkInstagramSession() {
-    if (sessionBusy || !sessionLinked) return;
-    if (!globalThis.confirm("Sunucuda şifreli saklanan Instagram oturumu silinsin mi?")) return;
-    sessionBusy = true;
-    setInstagramSessionFeedback("");
-    renderBusy();
-    try {
-      const result = await sendMessage({ type: "INSTAGRAM_SESSION_UNLINK" });
-      if (!result || result.ok !== true) {
-        throw new Error(typeof result?.error === "string" ? result.error : "Instagram oturumu kaldırılamadı.");
-      }
-      sessionLinked = false;
-      setInstagramSessionStatus("Instagram oturumu kaldırıldı", "Sunucudaki oturum kopyası silindi; takip/beğeni işlemleri durur.", "inactive");
-      setInstagramSessionFeedback("Sunucudaki Instagram oturumu silindi.", "success");
-    } catch (error) {
-      setInstagramSessionStatus("Oturum kaldırılamadı", error?.message || "Sunucu bağlantısını kontrol et.", "error");
-      setInstagramSessionFeedback(error?.message || "Instagram oturumu kaldırılamadı.");
+      sessionAvailable = false;
+      setInstagramSessionStatus("Oturum durumu alınamadı", error?.message || "Lisans durumunu kontrol et.", "error");
     } finally {
       sessionBusy = false;
       renderBusy();
@@ -644,8 +579,7 @@
   elements.refreshPlans.addEventListener("click", () => refreshPlans(true));
   elements.openAccountButton.addEventListener("click", openAccountPage);
   elements.checkPurchaseButton.addEventListener("click", checkPurchase);
-  elements.sessionLinkButton.addEventListener("click", linkInstagramSession);
-  elements.sessionUnlinkButton.addEventListener("click", unlinkInstagramSession);
+  elements.sessionCheckButton.addEventListener("click", refreshInstagramSessionStatus);
 
   async function initialize() {
     if (!runtimeAvailable) {

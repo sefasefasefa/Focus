@@ -1,10 +1,10 @@
 # Takipçi Paneli
 
-## Otomatik Instagram oturumu
+## Tarayıcı oturumu ve API işlemleri
 
-- Etkin lisans varsa uzantı açıldığında Instagram oturumunu aynı tarayıcı profilinden alıp lisans sunucusuna otomatik bağlar.
-- Oturum çerezleri lisans/cihaz başına şifrelenerek saklanır; Instagram parolası gönderilmez.
-- Sunucuya bağlı hesap değişirse uzantı oturumu otomatik değiştirmez. Lisans sayfasından eski oturumu silip yeni hesapla tekrar deneyin.
+- Instagram oturum bilgileri yalnızca uzantının çalıştığı tarayıcıdan okunur.
+- Eklenti, güncel oturum bilgilerini her Instagram işlemiyle birlikte API’ye gönderir. API saklanan bir oturum aramaz ve oturum çerezlerini veritabanında tutmaz.
+- Lisans merkezindeki oturum durumu tarayıcıdaki girişin hazır olup olmadığını gösterir; sunucuda oturum bağlama/silme işlemi yoktur.
 
 ## 1.0.158 E-posta doğrulamalı deneme
 
@@ -37,16 +37,13 @@
 - Yalnızca lisans kurulumu/durumu, herkese açık paket bilgisi ve yerel çıkış
   işlemleri lisans doğrulamasından muaftır.
 
-## 1.0.149 Sunucu üzerinden Instagram işlemleri ve oturum eşitleme
+## 1.0.163 Her işlemde geçici tarayıcı oturumu
 
 - Takipçi/takip listesi, takip isteği ve beğeni API istekleri artık lisans
   sunucusundaki Instagram proxy'sinden geçirilir.
-- Eklenti, lisans etkin olduğunda Instagram
-  oturum çerezlerini lisans sunucusuna otomatik iletir. Oturum; her API isteğinde,
-  çerez değişikliğinde ve beş dakikalık aralıklarla güncellenir.
-- Sunucu oturumu lisans/cihaz bazında AES-256-GCM ile saklar. Instagram hesabı
-  değişirse oturum kendiliğinden başka hesaba geçirilmez; kullanıcı yeniden
-  eski bağlantıyı kaldırıp yeni hesapla tekrar bağlanmalıdır.
+- Eklenti Instagram oturumunu tarayıcıdan okur ve her istekte geçici olarak
+  API'ye gönderir. Sunucu oturumu saklamaz veya başka bir istek için aramaz.
+- Eski sürümlerde kaydedilmiş oturum kopyaları API'nin ilk açılışında silinir.
 - `doc_id` ve GraphQL değişkenleri istek gövdesinde sunucuya iletilir; `doc_id`
   oturum çerezi değildir ve oturumu yenilemez.
 

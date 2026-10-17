@@ -1,10 +1,10 @@
 ---
-name: Instagram session diagnostics
-description: Distinguish a saved server-side Instagram session from the upstream response to an API probe.
+name: Instagram request session diagnostics
+description: Diagnose the current browser session and transient Instagram API request flow.
 ---
 
-A session shown as linked in the license center means the server has a saved session snapshot; it does not guarantee every Instagram API endpoint will accept a server-side request or that the browser still exposes a current sessionid cookie. The extension reads cookies through Chrome's cookies API and syncs them to the server; it must never download raw cookies back from the server. A 302 from an API probe alone is not evidence that the saved session should be deleted and linked again.
+The license center reports whether the extension can read the current browser session; it does not report a saved server session. The extension sends fresh cookies with each licensed Instagram operation. The API neither persists those cookies nor searches for an earlier session. An Instagram redirect or login error should be diagnosed against the current browser cookies and upstream response.
 
-**Why:** The user showed a successful linked-session status while an Instagram current-user request returned HTTP 302 to the homepage. Advising unlink/relink contradicted the UI and could disrupt an otherwise saved session.
+**Why:** The user chose a request-scoped session flow so the API receives all operation data from the extension and has no stored Instagram session to look up.
 
-**How to apply:** Explain whether the failure is local cookie access, session storage, or an upstream Instagram request. Distinguish a genuinely absent sessionid from a Chrome cookie-read error. Do not recommend deleting/relinking a session solely because a current-user probe redirects to `/`; say clearly when the server still reports the session as linked.
+**How to apply:** Separate local cookie-read failures from upstream Instagram responses. Do not suggest unlinking a server session; no server-side session exists. A redirect alone does not prove the browser is logged out, so check the current browser login and report the actual upstream status.
