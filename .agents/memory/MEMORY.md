@@ -1,2 +1,3 @@
 - [Dynamic Instagram targets](instagram-post-targets.md) — the post target changes; never hardcode one account into retrieval.
 - [Self-hosted credentials and licensing](self-hosted-credentials.md) — keep provider/payment secrets server-side and gate every extension operation with an expiring, server-validated license token.
+- [Instagram session diagnostics](instagram-session-diagnostics.md) — distinguish a stored server session from Instagram accepting an API probe; a 302 alone does not justify unlinking.

@@ -154,3 +154,17 @@ mtime_ms = 1792245922463
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/3a4e2c4b-6657-4cd5-937e-0f12bc3c9048/28ae07a4-7eab-4c5c-8fa1-41b2208480d1"
 storage_version_token = "1792245935244854"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "XfR-PlQydXrNVHvZRkfFX"
+uri = "file://generated-artifacts/releases/takipci-paneli-v1.0.160-local.zip"
+type = "unspecified"
+title = "Takipçi Paneli uzantısı v1.0.160 — yerel API"
+description = "302 hata metni düzeltildi: oturum bağlıysa bu yanıt oturumu silip yeniden bağlamayı önermiyor. Yerel API adresi (127.0.0.1:8787) korunmuştur; arşiv kontrol edildi."
+logical_id = "87737b90-c156-465f-8848-e928951aa958"
+content_hash = "sha256:f056a219ef18d61eb8b16b1d2598b7046756965217b254df29d0e777d8c74b32"
+size = 409342
+mtime_ms = 1792246180419
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/87737b90-c156-465f-8848-e928951aa958/3b1aa203-396b-405e-ad54-3c7ea6bd471b"
+storage_version_token = "1792246185749375"
+content_type = "application/octet-stream"

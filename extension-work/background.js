@@ -623,7 +623,7 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
     } else if (redirectType === 'verification') {
       message = 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
     } else if (redirectType === 'session') {
-      message = 'Instagram oturum kontrolünü ana sayfaya yönlendirdi. Tarayıcıda Instagram oturumunu kontrol edin; ardından lisans merkezinde sunucudaki oturumu silip yeniden bağlayın.';
+      message = 'Instagram oturum kontrolü ana sayfaya yönlendirildi (HTTP 302). Lisans merkezinde oturum bağlı görünüyor; bu yanıt sunucudaki oturumu silip yeniden bağlamanız gerektiğini göstermez.';
     } else if (redirectType === 'external') {
       message = 'Instagram isteği Instagram dışındaki bir adrese yönlendirildi. Güvenlik için yönlendirme takip edilmedi.';
     } else if (/login_required|checkpoint_required/i.test(responseText)) {
