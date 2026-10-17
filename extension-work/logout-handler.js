@@ -32,15 +32,51 @@
     return button;
   }
 
+  function styleHeaderButton(button) {
+    button.className = 'dov-refresh';
+    button.style.cssText = `
+      margin-left: 8px;
+      width: auto;
+      min-width: 64px;
+      height: 28px;
+      padding: 0 8px;
+      flex-shrink: 0;
+      border-color: rgba(255,255,255,0.12);
+      background: rgba(20,20,28,0.9);
+      color: #f87171;
+    `;
+  }
+
   function addHeaderButton() {
     const header = document.querySelector('.dov-header');
-    if (!header || document.getElementById('dov-logout-btn')) return;
-    const button = makeButton(
+    if (!header) return;
+
+    const existingHeaderButton = document.getElementById('dov-logout-btn');
+    const floatingButton = document.getElementById('floating-logout-btn');
+    if (!floatingButton && existingHeaderButton?.parentElement === header) {
+      if (existingHeaderButton.textContent !== 'Temizle') {
+        existingHeaderButton.textContent = 'Temizle';
+      }
+      if (existingHeaderButton.title !== 'Uzantının yerel verilerini temizle') {
+        existingHeaderButton.title = 'Uzantının yerel verilerini temizle';
+        existingHeaderButton.setAttribute('aria-label', existingHeaderButton.title);
+      }
+      styleHeaderButton(existingHeaderButton);
+      return;
+    }
+
+    existingHeaderButton?.remove();
+    const button = floatingButton || makeButton(
       'dov-logout-btn',
-      'Verileri temizle',
+      'Temizle',
       'Uzantının yerel verilerini temizle',
     );
-    button.style.marginLeft = '8px';
+    button.id = 'dov-logout-btn';
+    button.removeAttribute('style');
+    button.textContent = 'Temizle';
+    button.title = 'Uzantının yerel verilerini temizle';
+    button.setAttribute('aria-label', button.title);
+    styleHeaderButton(button);
     const refreshButton = document.getElementById('dovRefreshBtn');
     if (refreshButton && refreshButton.parentElement === header) {
       header.insertBefore(button, refreshButton);
@@ -49,35 +85,9 @@
     }
   }
 
-  function addFloatingButton() {
-    if (document.getElementById('floating-logout-btn')) return;
-    const button = makeButton(
-      'floating-logout-btn',
-      'Temizle',
-      'Uzantının yerel verilerini temizle',
-    );
-    button.style.cssText = `
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 2147483647;
-      min-width: 64px;
-      height: 32px;
-      padding: 0 8px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(20,20,28,0.9);
-      color: #f87171;
-      cursor: pointer;
-      backdrop-filter: blur(4px);
-      transition: all 0.2s;
-    `;
-    document.body.appendChild(button);
-  }
-
   function init() {
     addHeaderButton();
-    addFloatingButton();
+    document.getElementById('floating-logout-btn')?.remove();
   }
 
   if (document.readyState === 'loading') {
