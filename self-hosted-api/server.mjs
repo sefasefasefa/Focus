@@ -896,6 +896,9 @@ const server = createServer((request, response) => {
       error: status === 500 ? "Sunucu hatası." : String(error?.message || "İstek başarısız."),
       ...(error?.code ? { code: String(error.code) } : {}),
       ...(error?.licenseType ? { licenseType: String(error.licenseType) } : {}),
+      ...(response.getHeader("retry-after")
+        ? { retryAfter: String(response.getHeader("retry-after")).slice(0, 10) }
+        : {}),
     });
   });
 });

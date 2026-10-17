@@ -531,6 +531,19 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
     };
   });
   let result = await sendRequest();
+  const isLocalDispatchThrottle = requestResult =>
+    requestResult?.response?.status === 429 &&
+    /Instagram istekleri arasında kısa bir bekleme gerekli/i.test(
+      String(requestResult?.payload?.error || ''),
+    );
+  if (isLocalDispatchThrottle(result)) {
+    const retryAfterSeconds = Number(result.payload?.retryAfter);
+    const retryDelayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? Math.min(10_000, Math.max(1_000, retryAfterSeconds * 1000))
+      : 3_500;
+    await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+    result = await sendRequest();
+  }
   if (result.response.status === 401) {
     license = await validateExtensionLicense(true);
     if (!license.active) throw new Error(license.message || 'Lisans doğrulanamadı.');
@@ -2226,10 +2239,31 @@ async function runGraphQLMutationUnqueued(
     throw new Error('Instagram GraphQL sayfa tokenları alınamadı. Instagram sekmesini yenileyin.');
   }
 
-  const actorId = String(
+  const sessionUserId = String(
+    await getInstagramSessionUserId() || tokens.userId || '',
+  ).trim();
+  const storedUserId = String(stored.igUser?.pk ?? stored.igUser?.id ?? '').trim();
+  const storedActorId = String(
     stored.igUser?.fbid_v2 ?? stored.igUser?.pk ?? stored.igUser?.id ?? '',
+  ).trim();
+  const storedIdentityMatchesSession = Boolean(
+    sessionUserId && storedUserId && storedUserId === sessionUserId,
   );
-  if (!actorId) throw new Error('Instagram kullanıcı kimliği bulunamadı.');
+  // Only reuse fbid_v2 after pk/id proves the stored profile is the live account.
+  // Otherwise the cookie-backed session ID is safer than a possibly viewed profile.
+  const actorId = storedIdentityMatchesSession &&
+    /^\d+$/.test(storedActorId) &&
+    storedActorId !== '0'
+    ? storedActorId
+    : sessionUserId;
+  if (!/^\d+$/.test(actorId) || actorId === '0') {
+    await appendDebugLog('error', 'Instagram GraphQL oturum kullanıcı kimliği alınamadı', {
+      sessionUserIdAvailable: Boolean(sessionUserId),
+      pageContextUserIdAvailable: Boolean(tokens.userId),
+      storedIdentityMatchesSession,
+    });
+    throw new Error('Instagram oturum kullanıcı kimliği alınamadı. Instagram sekmesini yenileyip tekrar deneyin.');
+  }
   const gqlVariables = JSON.parse(JSON.stringify(variables || {}));
   if (
     gqlVariables.input &&
@@ -2755,7 +2789,7 @@ async function fetchProfilePosts(userId, username) {
       operation.docId,
       variables,
       operation.friendlyName,
-      '/graphql/query',
+      '/api/graphql',
     );
     const found = normalizeMediaList(result).length;
     await appendDebugLog('info', 'Instagram GraphQL gönderi yedeği tamamlandı', {
@@ -2811,7 +2845,7 @@ async function fetchProfileReels(userId) {
     __relay_internal__pv__PolarisShortDramaEnabledrelayprovider:
       capturedVariables.__relay_internal__pv__PolarisShortDramaEnabledrelayprovider ?? true,
   };
-  return callGraphQLMutation(operation.docId, variables, friendlyName, '/graphql/query');
+  return callGraphQLMutation(operation.docId, variables, friendlyName, '/api/graphql');
 }
 
 // Chrome rejects tab activation while the user is dragging/reordering tabs.

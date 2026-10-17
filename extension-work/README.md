@@ -44,6 +44,17 @@
 - Böylece kısa aralıkta gelen istekler API'den `429` alıp düşmek yerine sırayla
   gönderilir; Instagram hız sınırları gevşetilmez.
 
+## 1.0.165 Gönderi ve Reels oturum kimliği yedeği
+
+- GraphQL işlemleri, kaydedilmiş profil kimliği eksikse mevcut Instagram
+  oturumundaki `ds_user_id` değerini kullanır; başka bir profilin kimliğine
+  güvenilmez.
+- Gönderi ve Reels yedek sorguları lisans API'lerinde desteklenen
+  `/api/graphql` yolunu kullanır.
+- Lisans API'sinin kendi kısa-bekleme yanıtı `Retry-After` kadar beklenip bir
+  kez yeniden denenir; Instagram'ın kendi istek sınırı yanıtları yeniden
+  denenmez.
+
 ## 1.0.163 Her işlemde geçici tarayıcı oturumu
 
 - Takipçi/takip listesi, takip isteği ve beğeni API istekleri lisans
