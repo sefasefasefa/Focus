@@ -1,0 +1,22 @@
+background.js:1869 [Takipçi Paneli #00001] 2026-10-17T17:43:24.782Z Keşif | Otomatik keşif başlatılamadı {"phase":"discovery","reason":"Instagram sessionid çerezi bulunamadı","action":"instagram.com hesabında oturum açıp Keşif anahtarını yeniden aç"}
+writeExtensionConsole @ background.js:1869
+background.js:1869 [Takipçi Paneli #00002] 2026-10-17T17:44:12.873Z Profil GraphQL yenilemesi başarısız {"tabId":493287189,"error":"Instagram profil GraphQL operasyonu henüz yakalanmadı"}
+writeExtensionConsole @ background.js:1869
+background.js:1869 [Takipçi Paneli #00003] 2026-10-17T17:44:13.784Z Kullanıcı profiline girildi {"username":"@ahsapizmobilya","userId":"54740373171","action":"profil verisi alındı"}
+background.js:1869 [Takipçi Paneli #00004] 2026-10-17T17:44:58.871Z Profil sekmesi GraphQL fallback başarısız {"tabId":493287189,"error":"user_dict boş — {\"__ar\":1,\"error\":1357054,\"errorSummary\":\"Your Request Couldn't be Processed\",\"errorDescription\":\"There was a problem with this request. We're working on getting it fixed as soon as we can.\",\"isNotCritical\":1,\"rid\":\"AMeESMRQBtpsLdxopRK65F9\""}
+writeExtensionConsole @ background.js:1869
+appendDebugLog @ background.js:1891
+(anonymous) @ background.js:8816
+setTimeout
+(anonymous) @ background.js:1556
+sleep @ background.js:1556
+getViewerProfileViaProfileTab @ background.js:8010
+background.js:1869 [Takipçi Paneli #00005] 2026-10-17T17:44:58.872Z Profil içerik betiği fallback yenilemesi başlatıldı {"tabCount":1}
+background.js:1869 [Takipçi Paneli #00006] 2026-10-17T17:45:02.899Z Profil içerik betiği fallback sonucu {"tabId":493287189,"ok":false,"hasCounts":false,"userId":"","error":"Instagram sayfa verisinden doğrulanmış profil bulunamadı"}
+background.js:991 [+] YAKALANDI 40x doc_id | son: 27399811883030165 | liste: 26673487622279953 (7x), 26916974064594035 (3x), 28939180542359933 (3x), 30197608969842732 (3x), 27657376130569675 (3x), 27840486182295820 (2x), 28805668309050001 (2x), 38657722893875056 (2x), 27399811883030165 (2x), 39780665418213993 (2x), 27598155473139358 (1x), 28077768681846394 (1x), 34422716160661050 (1x), 28372617359013204 (1x), 9960725864052044 (1x), 28678424071792947 (1x), 28649589871350527 (1x), 38260824646898178 (1x), 26970053832668570 (1x), 27929823133325729 (1x), …
+background.js:1869 [Takipçi Paneli #00007] 2026-10-17T17:48:57.166Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":493287189}
+background.js:991 [+] YAKALANDI 7x doc_id | son: 27399811883030165 | liste: 26673487622279953 (2x), 28939180542359933 (1x), 30197608969842732 (1x), 27657376130569675 (1x), 28678424071792947 (1x), 27399811883030165 (1x)
+background.js:1869 [Takipçi Paneli #00008] 2026-10-17T17:54:45.737Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":493287189}
+background.js:991 [+] YAKALANDI 7x doc_id | son: 26673487622279953 | liste: 26673487622279953 (2x), 28939180542359933 (1x), 28678424071792947 (1x), 30197608969842732 (1x), 27657376130569675 (1x), 27399811883030165 (1x)
+background.js:1869 [Takipçi Paneli #00009] 2026-10-17T18:04:18.920Z Instagram sekmesi yenilendi ve bağlam yenilendi {"tabId":493287189}
+background.js:991 [+] YAKALANDI 7x doc_id | son: 27399811883030165 | liste: 26673487622279953 (2x), 28939180542359933 (1x), 28678424071792947 (1x), 30197608969842732 (1x), 27657376130569675 (1x), 27399811883030165 (1x)
