@@ -210,3 +210,31 @@ mtime_ms = 1792254087300
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:06d22a8d-c29f-4900-a587-2f1e14b19a3b/300e4f67-a45d-43eb-a406-a34a187455e3/d79e4b9c-f808-4dc6-9e7e-eb3b8ac7eb65"
 storage_version_token = "1792254096980600"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "og0nBptmS16qBUb27w-IF"
+uri = "file://generated-artifacts/test-packages/instagram-extension-local-test.zip"
+type = "unspecified"
+title = "Uzantı — yerel deneme ZIP’i"
+description = "localhost:8787 API adresini kullanan düzeltilmiş Chrome uzantısı. Açıp Chrome’da unpacked olarak yükleyin."
+logical_id = "6735bb85-0836-4691-b10b-940367d38563"
+content_hash = "sha256:9937484b9aa11ce169f718de03b94884545528f72d4a33c580b12d8bd08d3b45"
+size = 426254
+mtime_ms = 1792256064772
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/6735bb85-0836-4691-b10b-940367d38563/ebbd66f2-6418-4cfe-a773-980c17bdb80e"
+storage_version_token = "1792256073408606"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "nT9-97uhAiFB5hXwzNS9X"
+uri = "file://generated-artifacts/test-packages/license-api-server-fix.zip"
+type = "unspecified"
+title = "API sunucusu düzeltmesi ZIP’i"
+description = "Güncel self-hosted-api/server.mjs dosyası. Mevcut API dizinindeki server.mjs ile değiştirip sunucuyu yeniden başlatın."
+logical_id = "98df143b-fd69-4d29-8005-cded4acf7c11"
+content_hash = "sha256:e06d64879fd6cdfc031e57e79719d1dbf84bb19d6dfcbd7353531bd9865226ea"
+size = 10122
+mtime_ms = 1792256064792
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/98df143b-fd69-4d29-8005-cded4acf7c11/01da9c32-8763-450f-ad91-90960a6c838a"
+storage_version_token = "1792256074158621"
+content_type = "application/octet-stream"
