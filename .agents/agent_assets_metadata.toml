@@ -252,3 +252,17 @@ mtime_ms = 1792256167435
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/25b9eb2f-6787-4afd-a87b-ecf666c3fb43/0dc6ab08-0818-4b6b-a7d5-1d235a6f0e52"
 storage_version_token = "1792256172540415"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "apQqsM-SCwX1UWRkUTHp8"
+uri = "file://generated-artifacts/test-packages/frontend-source-full.zip"
+type = "unspecified"
+title = "Tam frontend kaynakları — extension-work ZIP’i"
+description = "Tam extension-work klasör yapısı ve tüm arayüz/uzantı dosyaları. Kurulum ZIP’inden farklı olarak kaynak klasörünü de korur; .env veya özel anahtar içermez."
+logical_id = "6e87ede6-c08d-4357-ad86-688e202a5486"
+content_hash = "sha256:09551e40c07de4c95e4ee0c79d61271406984ea183d8ef028f65a8d9049a5c1c"
+size = 427560
+mtime_ms = 1792256260979
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/6e87ede6-c08d-4357-ad86-688e202a5486/b5d72d6c-a7d2-4fe0-b43a-7601d59ee094"
+storage_version_token = "1792256266643108"
+content_type = "application/octet-stream"
