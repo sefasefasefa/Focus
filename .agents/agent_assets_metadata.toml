@@ -126,3 +126,31 @@ mtime_ms = 1792244282768
 storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:f45b6cd2-7785-490d-8ab5-3795d9e69b40/48ee006f-59bf-4b74-ac76-173f7e7b6e37/a0d9d9a7-7909-4730-a93a-3752d999c05f"
 storage_version_token = "1792244289648196"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "5jyJvCvDW4L418oqMgriK"
+uri = "file://generated-artifacts/releases/takipci-paneli-v1.0.159-local.zip"
+type = "unspecified"
+title = "Takipçi Paneli uzantısı — v1.0.159 (yerel API)"
+description = "Güncel uzantı ZIP’i. Mevcut env.js ayarı olan http://127.0.0.1:8787 korunmuştur; yalnızca aynı makinede yerel API ile test için uygundur."
+logical_id = "d2bb5f28-e56b-48ae-8c83-100120846838"
+content_hash = "sha256:0c0be51fbafd5ea9a2ebcd80b77c6a9a508954833ee2241532d30dd01a080abd"
+size = 409305
+mtime_ms = 1792245922247
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/d2bb5f28-e56b-48ae-8c83-100120846838/feeccf8d-0974-4efd-90cd-d5a1485e28a2"
+storage_version_token = "1792245934470267"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "NA8JvDjVlHWhXyUng4JII"
+uri = "file://generated-artifacts/releases/takipci-license-api-updated.zip"
+type = "unspecified"
+title = "Takipçi Paneli lisans API’si — güncel sunucu ZIP’i"
+description = "Güncel self-hosted API kaynakları; .env, veritabanı ve node_modules içermiyor. Sunucuya aktarıp README’deki başlangıç adımlarını izleyin."
+logical_id = "3a4e2c4b-6657-4cd5-937e-0f12bc3c9048"
+content_hash = "sha256:1f9aa142af4bff183820d20e61793580b05a7bd6670c916cf90988a1a2cd065b"
+size = 28850
+mtime_ms = 1792245922463
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:20083c04-6407-414a-a861-19d0c70d380b/3a4e2c4b-6657-4cd5-937e-0f12bc3c9048/28ae07a4-7eab-4c5c-8fa1-41b2208480d1"
+storage_version_token = "1792245935244854"
+content_type = "application/octet-stream"
