@@ -622,6 +622,8 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
       message = 'Instagram isteği giriş sayfasına yönlendirdi. Aynı tarayıcı profilinde Instagram’a giriş yapın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
     } else if (redirectType === 'verification') {
       message = 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
+    } else if (redirectType === 'session') {
+      message = 'Instagram oturum kontrolünü ana sayfaya yönlendirdi. Tarayıcıda Instagram oturumunu kontrol edin; ardından lisans merkezinde sunucudaki oturumu silip yeniden bağlayın.';
     } else if (redirectType === 'external') {
       message = 'Instagram isteği Instagram dışındaki bir adrese yönlendirildi. Güvenlik için yönlendirme takip edilmedi.';
     } else if (/login_required|checkpoint_required/i.test(responseText)) {

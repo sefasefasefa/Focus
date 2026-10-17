@@ -400,9 +400,12 @@ function normalizeInstagramProxyRequest(input) {
     throw Object.assign(new Error("Instagram isteği için yöntem desteklenmiyor."), { status: 400 });
   }
   const rawEndpoint = String(input?.endpoint || "");
+  const isRelativeEndpoint =
+    rawEndpoint.startsWith("/") && !rawEndpoint.startsWith("//");
+  const isAbsoluteInstagramEndpoint =
+    /^https:\/\/www\.instagram\.com(?:\/|$)/i.test(rawEndpoint);
   if (
-    !rawEndpoint.startsWith("/") ||
-    rawEndpoint.startsWith("//") ||
+    (!isRelativeEndpoint && !isAbsoluteInstagramEndpoint) ||
     rawEndpoint.length > 4096 ||
     rawEndpoint.includes("\\") ||
     /(?:^|\/)\.\.(?:\/|$)/.test(rawEndpoint)
@@ -412,6 +415,9 @@ function normalizeInstagramProxyRequest(input) {
   const url = new URL(rawEndpoint, "https://www.instagram.com");
   if (
     url.origin !== "https://www.instagram.com" ||
+    url.username ||
+    url.password ||
+    url.hash ||
     !/^\/api\/(?:v1\/|graphql(?:\/|$))/.test(url.pathname)
   ) {
     throw Object.assign(new Error("Yalnızca izin verilen Instagram API yolları çağrılabilir."), {
@@ -588,6 +594,12 @@ async function handleInstagramRequest(request, response) {
         /^\/(?:challenge|checkpoint)(?:\/|$)/i.test(redirectUrl.pathname)
       ) {
         redirectType = "verification";
+      } else if (
+        isInstagramHost &&
+        redirectUrl.pathname === "/" &&
+        normalized.url.pathname === "/api/v1/accounts/current_user/"
+      ) {
+        redirectType = "session";
       }
     } catch {
       // Do not expose or trust a malformed upstream redirect target.
