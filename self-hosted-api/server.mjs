@@ -281,12 +281,13 @@ function normalizeInstagramProxyRequest(input) {
     throw Object.assign(new Error("Instagram API yolu geçersiz."), { status: 400 });
   }
   const url = new URL(rawEndpoint, "https://www.instagram.com");
+  const isGraphQLQueryEndpoint = url.pathname === "/graphql/query";
   if (
     url.origin !== "https://www.instagram.com" ||
     url.username ||
     url.password ||
     url.hash ||
-    !/^\/api\/(?:v1\/|graphql(?:\/|$))/.test(url.pathname)
+    (!isGraphQLQueryEndpoint && !/^\/api\/(?:v1\/|graphql(?:\/|$))/.test(url.pathname))
   ) {
     throw Object.assign(new Error("Yalnızca izin verilen Instagram API yolları çağrılabilir."), {
       status: 400,
@@ -426,7 +427,10 @@ async function handleInstagramRequest(request, response) {
       } else if (
         isInstagramHost &&
         redirectUrl.pathname === "/" &&
-        normalized.url.pathname === "/api/v1/accounts/current_user/"
+        (
+          /^\/api\/(?:v1\/|graphql(?:\/|$))/.test(normalized.url.pathname) ||
+          normalized.url.pathname === "/graphql/query"
+        )
       ) {
         redirectType = "api_home_redirect";
       }

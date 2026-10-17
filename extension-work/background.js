@@ -572,6 +572,9 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
       status: upstreamStatus || result.response.status,
       retryAfter: String(result.payload?.retryAfter || ''),
       endpoint,
+      redirectType: String(result.payload?.redirectType || ''),
+      redirectHost: String(result.payload?.redirectHost || ''),
+      redirectPath: String(result.payload?.redirectPath || ''),
     });
     throw error;
   }
@@ -2667,11 +2670,14 @@ async function fetchProfilePosts(userId, username) {
       return await apiCall(idEndpoint, { count: '12' });
     } catch (error) {
       // Do not issue another route for an explicit auth, checkpoint, or
-      // rate-limit response. Only a transient HTML/frame failure may fall back.
-      if (!isTransientTabIssue(error)) throw error;
+      // rate-limit response. Instagram sometimes redirects the legacy REST
+      // feed route to its homepage; in that case, try username + captured GraphQL.
+      if (!isTransientTabIssue(error) && !isInstagramProfileFeedRedirect(error)) throw error;
       restError = error;
       if (usernameEndpoint) {
-        await appendDebugLog('warn', 'Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor', {
+        await appendDebugLog('warn', isInstagramProfileFeedRedirect(error)
+          ? 'Sayısal gönderi adresi ana sayfaya yönlendirildi; kullanıcı adı ve GraphQL yedeği deneniyor'
+          : 'Sayısal gönderi adresi geçici yanıt verdi; kullanıcı adı adresi deneniyor', {
           username: normalizedUsername,
           endpoint: idEndpoint,
         });
@@ -2687,9 +2693,11 @@ async function fetchProfilePosts(userId, username) {
       });
       return result;
     } catch (error) {
-      if (!isTransientTabIssue(error)) throw error;
+      if (!isTransientTabIssue(error) && !isInstagramProfileFeedRedirect(error)) throw error;
       restError = error;
-      await appendDebugLog('warn', 'Gönderi kullanıcı adı adresi geçici yanıt verdi', {
+      await appendDebugLog('warn', isInstagramProfileFeedRedirect(error)
+        ? 'Kullanıcı adı gönderi adresi ana sayfaya yönlendirildi; GraphQL yedeği deneniyor'
+        : 'Gönderi kullanıcı adı adresi geçici yanıt verdi', {
         username: normalizedUsername,
         error: String(error?.message || error).slice(0, 240),
       });
@@ -2769,6 +2777,15 @@ async function fetchProfilePosts(userId, username) {
     );
     throw error;
   }
+}
+
+function isInstagramProfileFeedRedirect(error) {
+  return Number(error?.status) >= 300 &&
+    Number(error?.status) < 400 &&
+    error?.redirectType === 'api_home_redirect' &&
+    error?.redirectHost === 'www.instagram.com' &&
+    error?.redirectPath === '/' &&
+    /^\/api\/v1\/feed\/user\//i.test(String(error?.endpoint || ''));
 }
 
 async function fetchProfileReels(userId) {
