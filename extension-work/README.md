@@ -37,9 +37,16 @@
 - Yalnızca lisans kurulumu/durumu, herkese açık paket bilgisi ve yerel çıkış
   işlemleri lisans doğrulamasından muaftır.
 
+## 1.0.164 API istekleri sıraya alınır
+
+- Eşzamanlı Instagram API çağrıları eklenti içinde sıraya alınır; API'nin
+  `POST` için 3 saniye, `GET` için 1,5 saniye aralık kuralları korunur.
+- Böylece kısa aralıkta gelen istekler API'den `429` alıp düşmek yerine sırayla
+  gönderilir; Instagram hız sınırları gevşetilmez.
+
 ## 1.0.163 Her işlemde geçici tarayıcı oturumu
 
-- Takipçi/takip listesi, takip isteği ve beğeni API istekleri artık lisans
+- Takipçi/takip listesi, takip isteği ve beğeni API istekleri lisans
   sunucusundaki Instagram proxy'sinden geçirilir.
 - Eklenti Instagram oturumunu tarayıcıdan okur ve her istekte geçici olarak
   API'ye gönderir. Sunucu oturumu saklamaz veya başka bir istek için aramaz.

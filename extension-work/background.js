@@ -483,34 +483,58 @@ function serializeInstagramRequestBody(body) {
   return String(body);
 }
 
+// The API rejects Instagram operations sent too close together. Schedule every
+// proxy request here so concurrent UI flows wait their turn instead of losing
+// requests to a local 429. Cookies are read only when a request is dispatched.
+let instagramProxyDispatchQueue = Promise.resolve();
+let lastInstagramProxyDispatchAt = 0;
+
+function queueInstagramProxyRequest(method, startRequest) {
+  const minimumGap = String(method).toUpperCase() === 'POST' ? 3250 : 1750;
+  const scheduled = instagramProxyDispatchQueue.then(async () => {
+    const waitMs = Math.max(
+      0,
+      minimumGap - (Date.now() - lastInstagramProxyDispatchAt),
+    );
+    if (waitMs > 0) await new Promise(resolve => setTimeout(resolve, waitMs));
+    const started = await startRequest();
+    lastInstagramProxyDispatchAt = Date.now();
+    return started;
+  });
+  instagramProxyDispatchQueue = scheduled.then(
+    () => undefined,
+    () => undefined,
+  );
+  return scheduled.then(({ responsePromise }) => responsePromise);
+}
+
 async function instagramServerRequest(endpoint, params, method = 'GET', body, headers = {}) {
   let license = await requireActiveLicense();
-  const session = await readCurrentInstagramSession();
+  const upstreamMethod = String(method || 'GET').toUpperCase();
   const requestBody = {
     endpoint,
     params: params || {},
-    method: String(method || 'GET').toUpperCase(),
+    method: upstreamMethod,
     body: serializeInstagramRequestBody(body),
     headers,
-    session,
   };
-  let result = await postLicenseApi(
-    license.apiBaseUrl,
-    '/api/instagram/request',
-    requestBody,
-    license.accessToken,
-    32_000,
-  );
+  const sendRequest = () => queueInstagramProxyRequest(upstreamMethod, async () => {
+    const session = await readCurrentInstagramSession();
+    return {
+      responsePromise: postLicenseApi(
+        license.apiBaseUrl,
+        '/api/instagram/request',
+        { ...requestBody, session },
+        license.accessToken,
+        32_000,
+      ),
+    };
+  });
+  let result = await sendRequest();
   if (result.response.status === 401) {
     license = await validateExtensionLicense(true);
     if (!license.active) throw new Error(license.message || 'Lisans doğrulanamadı.');
-    result = await postLicenseApi(
-      license.apiBaseUrl,
-      '/api/instagram/request',
-      requestBody,
-      license.accessToken,
-      32_000,
-    );
+    result = await sendRequest();
   }
   if (!result.response.ok) {
     throw new Error(String(result.payload?.error || 'Instagram API sunucusuna ulaşılamadı.'));
