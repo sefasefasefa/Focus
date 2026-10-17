@@ -238,3 +238,17 @@ mtime_ms = 1792256064792
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/98df143b-fd69-4d29-8005-cded4acf7c11/01da9c32-8763-450f-ad91-90960a6c838a"
 storage_version_token = "1792256074158621"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "TL6hhLLz8nPQ-0GSB-pFK"
+uri = "file://generated-artifacts/test-packages/license-api-full.zip"
+type = "unspecified"
+title = "Tam API klasörü — deneme ZIP’i"
+description = "self-hosted-api içindeki bütün kaynaklar, README ve .env.example içerir. Gerçek .env dosyası, veritabanı, node_modules ve git verisi dahil değildir."
+logical_id = "25b9eb2f-6787-4afd-a87b-ecf666c3fb43"
+content_hash = "sha256:9d4483a470d4b32c89d9ec350f4b2f30ea9cf3426364f540ddfc80a4b0f11187"
+size = 27888
+mtime_ms = 1792256167435
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/25b9eb2f-6787-4afd-a87b-ecf666c3fb43/0dc6ab08-0818-4b6b-a7d5-1d235a6f0e52"
+storage_version_token = "1792256172540415"
+content_type = "application/octet-stream"
