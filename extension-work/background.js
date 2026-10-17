@@ -1518,17 +1518,54 @@ function isAutomationStopError(error) {
     isTransientTabIssue(error);
 }
 
-async function hasInstagramSessionCookie() {
+function readInstagramCookieApi(query, getAll = false) {
+  return new Promise((resolve, reject) => {
+    try {
+      const callback = value => {
+        const error = chrome.runtime?.lastError;
+        if (error) reject(new Error(error.message || 'Instagram çerezleri okunamadı.'));
+        else resolve(value);
+      };
+      if (getAll) chrome.cookies.getAll(query, callback);
+      else chrome.cookies.get(query, callback);
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
+async function getInstagramSessionCookieState() {
   try {
-    const direct = await new Promise(resolve =>
-      chrome.cookies.get({ url: 'https://www.instagram.com', name: 'sessionid' }, resolve)
+    const direct = await readInstagramCookieApi(
+      { url: 'https://www.instagram.com', name: 'sessionid' },
     );
-    if (direct?.value) return true;
-    const all = await chrome.cookies.getAll({ domain: 'instagram.com' });
-    return all.some(cookie => cookie.name === 'sessionid' && cookie.value);
+    if (direct?.value) return { present: true, readError: false };
   } catch {
-    return false;
+    // The domain query below may still work on browsers with different cookie
+    // storage behavior; only report a read failure if both lookups fail.
   }
+  try {
+    const all = await readInstagramCookieApi({ domain: 'instagram.com' }, true);
+    return {
+      present: all.some(cookie => cookie.name === 'sessionid' && cookie.value),
+      readError: false,
+    };
+  } catch {
+    return { present: false, readError: true };
+  }
+}
+
+function instagramSessionCookieFailureLabel(state, paused = false) {
+  const suffix = paused ? ' — otomasyon duraklatıldı' : '';
+  if (state?.readError) {
+    return `Instagram çerezleri okunamadı — uzantının Instagram site/çerez izinlerini kontrol edin${suffix}`;
+  }
+  return `sessionid çerezi yok — aynı tarayıcıda instagram.com'a giriş yapın${suffix}`;
+}
+
+async function hasInstagramSessionCookie() {
+  const state = await getInstagramSessionCookieState();
+  return state.present;
 }
 
 // ds_user_id is the authoritative account identity. The profile object in
@@ -9136,14 +9173,14 @@ function dispatchExtensionMessage(msg, _sender, reply) {
       if (key in msg.patch) patch[key] = msg.patch[key];
     }
     const enableAfterSessionCheck = patch.enabled === true
-      ? hasInstagramSessionCookie()
-      : Promise.resolve(true);
-    enableAfterSessionCheck.then(async sessionPresent => {
+      ? getInstagramSessionCookieState()
+      : Promise.resolve({ present: true, readError: false });
+    enableAfterSessionCheck.then(async sessionCookieState => {
       await _igRequestBlockReady;
-      if (patch.enabled === true && !sessionPresent) {
+      if (patch.enabled === true && !sessionCookieState.present) {
         patch.enabled = false;
         patch.backoffUntil = Date.now() + 30 * 60000;
-        patch.lastActionLabel = "sessionid çerezi yok — önce instagram.com'a giriş yapın";
+        patch.lastActionLabel = instagramSessionCookieFailureLabel(sessionCookieState, true);
       } else if (patch.enabled === true) {
         const requestedMinDelay = Math.max(
           65,
@@ -9629,28 +9666,32 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === ALARM_DISCOVERY_START || alarm.name === ALARM_DISCOVERY) {
-    hasInstagramSessionCookie().then(present => {
-      if (present) {
+    getInstagramSessionCookieState().then(sessionCookieState => {
+      if (sessionCookieState.present) {
         discoveryAlarmTick().catch(() => {});
         return;
       }
       appendDiscoveryLog('warn', 'Otomatik keşif başlatılamadı', {
-        reason: 'Instagram sessionid çerezi bulunamadı',
-        action: 'instagram.com hesabında oturum açıp Keşif anahtarını yeniden aç',
+        reason: sessionCookieState.readError
+          ? 'Chrome Instagram çerezlerine erişemedi'
+          : 'Instagram sessionid çerezi bulunamadı',
+        action: sessionCookieState.readError
+          ? 'Uzantının Instagram site/çerez izinlerini kontrol et'
+          : 'instagram.com hesabında oturum açıp Keşif anahtarını yeniden aç',
       }).catch(() => {});
     });
     return;
   }
   if (alarm.name === ALARM_AUTOLIKE_START) {
-    hasInstagramSessionCookie().then(present => {
-      if (present) {
+    getInstagramSessionCookieState().then(sessionCookieState => {
+      if (sessionCookieState.present) {
         autolikeTick().catch(() => {});
         return;
       }
       patchState({
         enabled: false,
         backoffUntil: Date.now() + 30 * 60000,
-        lastActionLabel: 'sessionid çerezi yok — otomasyon duraklatıldı',
+        lastActionLabel: instagramSessionCookieFailureLabel(sessionCookieState, true),
       }).catch(() => {});
     });
     return;
@@ -9662,21 +9703,22 @@ chrome.alarms.onAlarm.addListener(alarm => {
     // eşiğini hızla dolduruyor. Sunucu canlı doğrulaması yalnızca
     // kullanıcı kart üzerinden "Şimdi kontrol et" e bastığında
     // ve AÇIK bir instagram.com sekmesinin içinden yapılıyor.
-    chrome.cookies.get({ url: 'https://www.instagram.com', name: 'sessionid' }, cookie => {
-      const present = !!cookie?.value;
-      patchState({
+    getInstagramSessionCookieState().then(sessionCookieState => {
+      const present = sessionCookieState.present;
+      const sessionPatch = {
         sessionCheckedAt: Date.now(),
-        sessionValid: present,
         sessionReason: present
           ? 'Çerez mevcut (sunucu doğrulaması için "Şimdi kontrol et" kullanın)'
-          : 'sessionid çerezi yok — instagram.com\'a giriş yapın',
-      }).catch(() => {});
+          : instagramSessionCookieFailureLabel(sessionCookieState),
+      };
+      if (!sessionCookieState.readError) sessionPatch.sessionValid = present;
+      patchState(sessionPatch).catch(() => {});
       if (!present) {
         // Çerez kayıp → otomasyonu güvenli şekilde duraklat
         patchState({
           backoffUntil: Date.now() + 30 * 60000,
           enabled: false,
-          lastActionLabel: 'sessionid çerezi yok — instagram.com\'a tarayıcıdan giriş yapıp otomasyonu tekrar aç',
+          lastActionLabel: instagramSessionCookieFailureLabel(sessionCookieState, true),
         }).catch(() => {});
         broadcastStatus();
       } else {
@@ -9691,8 +9733,8 @@ chrome.alarms.onAlarm.addListener(alarm => {
     return;
   }
   if (alarm.name === ALARM_AUTOLIKE) {
-    hasInstagramSessionCookie().then(present => {
-      if (present) {
+    getInstagramSessionCookieState().then(sessionCookieState => {
+      if (sessionCookieState.present) {
         autolikeTick().catch(() => {});
         return;
       }
@@ -9700,7 +9742,7 @@ chrome.alarms.onAlarm.addListener(alarm => {
       patchState({
         enabled: false,
         backoffUntil: Date.now() + 30 * 60000,
-        lastActionLabel: 'sessionid çerezi yok — otomasyon duraklatıldı',
+        lastActionLabel: instagramSessionCookieFailureLabel(sessionCookieState, true),
       }).catch(() => {});
     });
   }
