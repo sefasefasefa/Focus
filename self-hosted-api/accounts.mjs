@@ -59,23 +59,49 @@ export function createAccountHandlers({
     `).get(emailHash, now);
   }
 
+  function ensureTrialForVerifiedEmail(emailHash, now = Date.now()) {
+    if (findActivePaidOrder(emailHash, now)) return;
+    const priorTrial = db.prepare(`
+      SELECT 1 FROM shopier_orders
+      WHERE email_hash = ? AND payment_status = 'trial'
+      LIMIT 1
+    `).get(emailHash);
+    if (priorTrial) return;
+    db.prepare(`
+      INSERT OR IGNORE INTO shopier_orders
+        (order_id, product_id, payment_status, email_hash, paid_at, expires_at, revoked_at, device_limit)
+      VALUES (?, 'free-trial', 'trial', ?, ?, ?, NULL, 0)
+    `).run(
+      `trial:${emailHash}`,
+      emailHash,
+      now,
+      now + FREE_TRIAL_DAYS * DAY_MS,
+    );
+  }
+
   function smtpSettings() {
-    if (
-      !process.env.SMTP_HOST ||
-      !process.env.SMTP_USER ||
-      !process.env.SMTP_PASS ||
-      !process.env.SMTP_FROM ||
-      !Number.isInteger(Number(process.env.SMTP_PORT)) ||
-      Number(process.env.SMTP_PORT) < 1 ||
-      Number(process.env.SMTP_PORT) > 65535
-    ) {
-      throw Object.assign(new Error("E-posta gönderimi için SMTP sunucu ayarları eksik."), { status: 503 });
+    const required = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"];
+    const missing = required.filter(key => !String(process.env[key] || "").trim());
+    const port = Number(String(process.env.SMTP_PORT || "").trim());
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      missing.push("SMTP_PORT");
+    }
+    if (missing.length) {
+      throw Object.assign(
+        new Error(
+          `SMTP ayarları çalışan sunucu işleminde eksik veya geçersiz: ${missing.join(", ")}. API klasöründeki .env dosyasını kontrol edip sunucuyu yeniden başlatın; parola değerleri gösterilmez.`,
+        ),
+        { status: 503 },
+      );
     }
     return {
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: String(process.env.SMTP_SECURE).toLowerCase() === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      host: String(process.env.SMTP_HOST).trim(),
+      port,
+      secure: String(process.env.SMTP_SECURE || "").trim().toLowerCase() === "true",
+      auth: {
+        user: String(process.env.SMTP_USER).trim(),
+        pass: process.env.SMTP_PASS,
+      },
     };
   }
 
@@ -326,19 +352,7 @@ export function createAccountHandlers({
       }
 
       const now = Date.now();
-      const activePaidOrder = findActivePaidOrder(emailHash, now);
-      if (!activePaidOrder) {
-        db.prepare(`
-          INSERT OR IGNORE INTO shopier_orders
-            (order_id, product_id, payment_status, email_hash, paid_at, expires_at, revoked_at, device_limit)
-          VALUES (?, 'free-trial', 'trial', ?, ?, ?, NULL, 0)
-        `).run(
-          `trial:${emailHash}`,
-          emailHash,
-          now,
-          now + FREE_TRIAL_DAYS * DAY_MS,
-        );
-      }
+      ensureTrialForVerifiedEmail(emailHash, now);
       db.prepare(`
         INSERT INTO account_users (email_hash, password_salt, password_hash, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
@@ -428,6 +442,7 @@ export function createAccountHandlers({
       return writeJson(response, 401, { ok: false, error: "E-posta veya parola hatalı." });
     }
 
+    ensureTrialForVerifiedEmail(emailHash);
     const activeOrder = findActiveOrder(emailHash);
     const license = activeOrder ? issueLicense(activeOrder, deviceId) : null;
 
@@ -469,6 +484,7 @@ export function createAccountHandlers({
     requireConfiguredLicenseSecrets();
     const session = authenticateAccount(request);
     await readJson(request, 16 * 1024);
+    ensureTrialForVerifiedEmail(session.email_hash);
     const order = findActiveOrder(session.email_hash);
     const license = order ? issueLicense(order, session.device_id) : null;
     return writeJson(response, 200, {

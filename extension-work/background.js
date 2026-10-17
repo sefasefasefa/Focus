@@ -57,6 +57,7 @@ const PROFILE_LOOKUP_TIMEOUT_MS = 75 * 1000;
 const LICENSE_STATE_KEY = 'tpLicenseState';
 const LICENSE_API_URL_KEY = 'tpLicenseApiBaseUrl';
 const LICENSE_DEVICE_ID_KEY = 'tpLicenseDeviceId';
+const ACCOUNT_STATE_KEY = 'tpAccountState';
 const INSTAGRAM_SESSION_CONSENT_KEY = 'tpInstagramSessionConsent';
 const INSTAGRAM_SESSION_SYNC_ALARM = 'tp-instagram-session-sync';
 const LICENSE_VALIDATION_CACHE_MS = 30 * 1000;
@@ -148,10 +149,101 @@ async function getLicensePublicConfig(apiBaseUrl) {
   return { ok: true, ...payload };
 }
 
+async function restoreLicenseFromAccountSession(account, fallbackApiBase) {
+  const sessionToken = String(account?.sessionToken || '');
+  if (!sessionToken) return null;
+  if (Number(account.sessionExpiresAt) <= Date.now()) {
+    return { active: false, message: 'Hesap oturumu süresi dolmuş. Hesap ekranından tekrar giriş yapın.' };
+  }
+
+  let apiBase;
+  try {
+    apiBase = normalizeLicenseApiBase(account.apiBaseUrl || fallbackApiBase);
+  } catch (error) {
+    return { active: false, message: error.message };
+  }
+
+  try {
+    const { response, payload } = await postLicenseApi(
+      apiBase,
+      '/api/account/license/refresh',
+      {},
+      sessionToken,
+    );
+    if (!response.ok || payload?.ok === false) {
+      return {
+        active: false,
+        message: String(payload?.error || 'Hesap lisansı sunucudan yenilenemedi.'),
+      };
+    }
+
+    const subscriptions = Array.isArray(payload.subscriptions) ? payload.subscriptions : [];
+    const trialExpired = subscriptions.some(
+      subscription => subscription?.isTrial === true && subscription?.status === 'expired',
+    );
+    const license = payload.license;
+    if (!license?.accessToken) {
+      return {
+        active: false,
+        expired: trialExpired,
+        trialExpired,
+        message: trialExpired
+          ? '7 günlük ücretsiz denemen sona erdi. Devam etmek için aylık lisans satın al.'
+          : 'Etkin deneme veya lisans bulunamadı. E-posta doğrulanmış hesabınızla giriş yapın.',
+      };
+    }
+
+    const deviceId = String(payload.deviceId || license.deviceId || account.deviceId || '');
+    if (!/^[a-zA-Z0-9_-]{16,128}$/.test(deviceId)) {
+      return { active: false, message: 'Hesap lisansı için oturum bilgisi alınamadı.' };
+    }
+    const nextLicense = {
+      apiBaseUrl: apiBase,
+      deviceId,
+      accessToken: license.accessToken,
+      refreshToken: String(license.refreshToken || ''),
+      tokenExpiresAt: Number(license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,
+      validatedAt: Date.now(),
+      expiresAt: license.expiresAt == null ? null : Number(license.expiresAt),
+      licenseType: String(license.licenseType || ''),
+    };
+    const nextAccount = { ...account, apiBaseUrl: apiBase, deviceId };
+    await setLicenseStorage({
+      [LICENSE_API_URL_KEY]: apiBase,
+      [LICENSE_DEVICE_ID_KEY]: deviceId,
+      [LICENSE_STATE_KEY]: nextLicense,
+      [ACCOUNT_STATE_KEY]: nextAccount,
+    });
+    return {
+      active: true,
+      expiresAt: nextLicense.expiresAt,
+      licenseType: nextLicense.licenseType,
+      apiBaseUrl: apiBase,
+      accessToken: nextLicense.accessToken,
+    };
+  } catch {
+    return {
+      active: false,
+      message: 'Lisans sunucusuna ulaşılamıyor. İnternet ve API adresini kontrol edin.',
+    };
+  }
+}
+
 async function validateExtensionLicense(force = false) {
-  const stored = await getLicenseStorage([LICENSE_STATE_KEY, LICENSE_API_URL_KEY]);
+  const stored = await getLicenseStorage([
+    LICENSE_STATE_KEY,
+    LICENSE_API_URL_KEY,
+    ACCOUNT_STATE_KEY,
+  ]);
   const license = stored[LICENSE_STATE_KEY] || {};
-  const rawBase = String(stored[LICENSE_API_URL_KEY] || license.apiBaseUrl || '');
+  const account = stored[ACCOUNT_STATE_KEY] || {};
+  const rawBase = String(
+    stored[LICENSE_API_URL_KEY] || license.apiBaseUrl || account.apiBaseUrl || '',
+  );
+  if (!license.accessToken) {
+    const recovered = await restoreLicenseFromAccountSession(account, rawBase);
+    if (recovered) return recovered;
+  }
   if (!rawBase || !license.accessToken) {
     return { active: false, message: 'Etkin deneme veya lisans bulunamadı. Ücretsiz hesap oluşturun ya da aylık lisans satın alın.' };
   }
@@ -222,6 +314,8 @@ async function validateExtensionLicense(force = false) {
         };
       }
       if ([401, 403].includes(refreshed.response.status)) {
+        const accountRecovery = await restoreLicenseFromAccountSession(account, apiBase);
+        if (accountRecovery) return accountRecovery;
         const trialExpired = refreshed.payload?.code === 'TRIAL_EXPIRED';
         if (trialExpired) {
           await setLicenseStorage({
@@ -254,6 +348,10 @@ async function validateExtensionLicense(force = false) {
       license.accessToken,
     );
     if (!response.ok || !payload?.accessToken) {
+      if (response.status === 401 || response.status === 403) {
+        const accountRecovery = await restoreLicenseFromAccountSession(account, apiBase);
+        if (accountRecovery) return accountRecovery;
+      }
       const trialExpired = payload?.code === 'TRIAL_EXPIRED';
       if (trialExpired) {
         await setLicenseStorage({
