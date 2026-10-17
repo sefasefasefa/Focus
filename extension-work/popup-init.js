@@ -48,6 +48,19 @@
   });
 })();
 
+// When the user opens the extension, automatically link the current
+// Instagram session if this device already has an active license.
+(function () {
+  if (!globalThis.chrome?.runtime?.sendMessage) return;
+  try {
+    chrome.runtime.sendMessage({ type: 'INSTAGRAM_SESSION_AUTO_LINK' }, () => {
+      void chrome.runtime.lastError;
+    });
+  } catch {
+    // The popup remains usable if automatic linking cannot start.
+  }
+})();
+
 // ── igUser veya igUserTs değiştiğinde popupu yenile ──────────────────
 (function () {
   if (!window.chrome || !chrome.storage || !chrome.storage.onChanged) return;

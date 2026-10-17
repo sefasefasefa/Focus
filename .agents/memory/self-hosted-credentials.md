@@ -7,11 +7,11 @@ API-provider keys, license-signing/data secrets, and payment/webhook credentials
 
 Every extension operation and operational data-ingestion message must require a fresh server-side license check; the server validates the signed device token, revocation/payment status, and license expiry on each protected API request. Only public plan/status reads and local logout/cleanup are exempt.
 
-Instagram sessions are linked only after explicit user consent, synchronized from the user's browser, encrypted and isolated by license order and device on the server, and used by the server-side Instagram proxy. Do not download raw session cookies from the server back into the extension.
+With an active license, automatically link and synchronize the Instagram session from the user's browser when the extension opens, without a separate consent checkbox. Encrypt and isolate it by license order and device on the server; do not download raw session cookies back into the extension.
 
-**Why:** The user requires every operation to pass license validation, with licenses assigned through tokens and enforced expiration; the server-proxy architecture also ensures follow/like actions use each user's own isolated session without copying raw cookies back to the extension.
+**Why:** The user says extension users expect server-backed Instagram features to work automatically and explicitly asked to remove the separate consent step. License validation and per-device isolation still limit who can link and use a session.
 
-**How to apply:** Gate every extension message that reads, writes, or acts on operational data through a fresh server license check; protect every business API route with token, revocation/payment, device, and expiry validation. Keep only public plan/status reads and local logout/cleanup outside the gate. Route provider requests through `self-hosted-api`; never put provider or payment secrets in extension files. Preserve explicit consent, per-order/device isolation, encryption, and server-side Instagram request execution.
+**How to apply:** Gate every extension message that reads, writes, or acts on operational data through a fresh server license check; protect every business API route with token, revocation/payment, device, and expiry validation. Automatically link only while the license is active and the browser has an Instagram session. Keep per-order/device isolation, encryption, and server-side Instagram request execution; never put provider or payment secrets in extension files or copy raw Instagram cookies back to the extension.
 
 The extension must not ask users for a Shopier order number during account registration or license activation. Use the paid order recorded by the signed webhook and verify mailbox access for its buyer email.
 

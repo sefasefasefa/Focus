@@ -51,7 +51,7 @@ Veriler tek bir yerel SQLite dosyasında tutulur; ayrı PostgreSQL kurulumuna ge
 - `GET/POST /api/account/password/reset` — sıfırlama sayfası ve parola yenileme
 - `DELETE /api/account/session` — bu cihazdaki hesabı çıkarma ve lisans token'larını geçersiz kılma
 - `POST /api/ai/gender` — aktif lisansla AI sınıflandırması
-- `GET/POST/PATCH/DELETE /api/instagram/session` — lisans/cihaz oturumunu görme, açık onayla bağlama, güncelleme ve silme
+- `GET/POST/PATCH/DELETE /api/instagram/session` — lisans/cihaz oturumunu görme, otomatik bağlama/güncelleme ve silme
 - `POST /api/instagram/request` — lisanslı cihazın Instagram REST/GraphQL isteğini kendi oturumu ile iletme
 
 Hesap ve lisans oturumlarını sunucu, uzantının oluşturduğu oturum kimliğiyle ilişkilendirir; bu kimlik donanımdan okunmaz ve deneme hakkını sınırlamak için kullanılmaz. Aylık lisansın 30 günlük süresi ve Instagram'ın kendi istek sınırları devam eder. Lisansı iptal etmek için:
@@ -68,7 +68,7 @@ Hesap oturumları 90 gün geçerlidir. Parola sıfırlama bağlantısı 1 saat s
 - `.env` ve `data/` klasörü yedeklenmeli, fakat eklentiye veya herkese açık ZIP'e eklenmemeli.
 - Shopier webhook token'ı, AI anahtarları ve imzalama sırları sadece bu sunucuda kalmalı.
 - SMTP parolası yalnızca sunucudaki `.env` dosyasında veya sunucunun gizli ortam değişkenlerinde kalmalı; eklenti ZIP'ine koyma.
-- Instagram oturumu yalnızca eklentide açık kullanıcı onayı verildikten sonra bu sunucuya gönderilir. HTTPS üzerinden gelen çerezler, her lisans/cihaz kaydı için AES-256-GCM ile şifrelenerek diskte saklanır; ham değerler yalnızca istek işlenirken bellekte açılır.
+- Etkin lisansı olan uzantı Instagram oturum çerezlerini açılışta ve oturum değişikliklerinde otomatik olarak bu sunucuya gönderir. Uzaktaki sunucu için HTTPS kullanın. Çerezler her lisans/cihaz kaydı için AES-256-GCM ile şifrelenerek diskte saklanır; ham değerler yalnızca istek işlenirken bellekte açılır.
 - Eklenti tarayıcıdaki güncel çerezleri her Instagram API isteğinde, çerez değiştiğinde ve beş dakikada bir sunucuya eşitler. Oturum geçersizleşirse tarayıcıda Instagram'a yeniden giriş gerekir; `doc_id` yenilemek oturumun yerini tutmaz.
-- Sunucudaki Instagram oturumu lisans siparişi ve cihaz kimliğine bağlıdır. Aynı cihazda başka Instagram hesabına geçmek için önce oturum bağlantısını silip yeni hesap için yeniden açık onay verilmelidir.
+- Sunucudaki Instagram oturumu lisans siparişi ve cihaz kimliğine bağlıdır. Aynı cihazda başka Instagram hesabına geçmek için önce oturum bağlantısını silip yeni hesapla tekrar bağlanmalıdır.
 - Eklenti kodu istemci tarafında olduğundan cracklenebilir. Sunucu API'si, lisanslar ve anahtarlar korunur; yerel Instagram işlemleri için mutlak kopya/atlatma koruması garanti edilemez.

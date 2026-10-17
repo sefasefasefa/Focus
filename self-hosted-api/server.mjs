@@ -291,14 +291,14 @@ async function handleInstagramSession(request, response) {
 
   if (request.method === "GET") {
     const row = db.prepare(`
-      SELECT instagram_user_id, consented_at, updated_at
+      SELECT instagram_user_id, created_at, updated_at
       FROM instagram_sessions WHERE order_id = ? AND device_id = ?
     `).get(token.orderId, token.deviceId);
     return writeJson(response, 200, {
       ok: true,
       linked: Boolean(row),
       instagramUserId: row?.instagram_user_id || null,
-      consentedAt: row ? Number(row.consented_at) : null,
+      linkedAt: row ? Number(row.created_at) : null,
       updatedAt: row ? Number(row.updated_at) : null,
     });
   }
@@ -320,31 +320,25 @@ async function handleInstagramSession(request, response) {
   }
 
   const input = await readJson(request, 32 * 1024);
-  const session = request.method === "PATCH"
-    ? sanitizeInstagramSession({
-        ...input,
-        consent: true,
-        consentVersion: "instagram-session-v1",
-      })
-    : sanitizeInstagramSession(input);
-  if (request.method === "PATCH") {
-    const existing = db.prepare(`
-      SELECT instagram_user_id, consented_at
-      FROM instagram_sessions WHERE order_id = ? AND device_id = ?
-    `).get(token.orderId, token.deviceId);
-    if (!existing) {
-      throw Object.assign(new Error("Instagram oturumu henüz açık onayla bağlanmamış."), {
-        status: 409,
-      });
-    }
+  const session = sanitizeInstagramSession(input);
+  const existing = db.prepare(`
+    SELECT instagram_user_id, created_at
+    FROM instagram_sessions WHERE order_id = ? AND device_id = ?
+  `).get(token.orderId, token.deviceId);
+  if (request.method === "PATCH" && !existing) {
+    throw Object.assign(new Error("Instagram oturum kaydı bulunamadı; yeniden bağlamayı deneyin."), {
+      status: 409,
+    });
+  }
+  if (existing) {
     if (String(existing.instagram_user_id) !== session.instagramUserId) {
-      throw Object.assign(new Error("Instagram hesabı değişmiş. Yeni hesabı bağlamak için önce eski oturum bağlantısını kaldırın."), {
+      throw Object.assign(new Error("Instagram hesabı değişmiş. Önce lisans sayfasından sunucudaki eski oturumu silin."), {
         status: 409,
       });
     }
-    session.consentAt = Number(existing.consented_at);
+    session.linkedAt = Number(existing.created_at);
   } else {
-    session.consentAt = Date.now();
+    session.linkedAt = Date.now();
   }
   const encrypted = encryptInstagramSession(
     session,
@@ -387,7 +381,7 @@ async function handleInstagramSession(request, response) {
       encrypted.ciphertext,
       encrypted.iv,
       encrypted.tag,
-      session.consentAt,
+      session.linkedAt,
       now,
       now,
     );
@@ -396,7 +390,7 @@ async function handleInstagramSession(request, response) {
     ok: true,
     linked: true,
     instagramUserId: session.instagramUserId,
-    consentedAt: session.consentAt,
+    linkedAt: session.linkedAt,
   });
 }
 
@@ -481,13 +475,9 @@ async function handleInstagramRequest(request, response) {
   }
 
   if (input?.session && typeof input.session === "object") {
-    const latestSession = sanitizeInstagramSession({
-      ...input.session,
-      consent: true,
-      consentVersion: "instagram-session-v1",
-    });
+    const latestSession = sanitizeInstagramSession(input.session);
     if (latestSession.instagramUserId !== String(row.instagram_user_id)) {
-      throw Object.assign(new Error("Instagram hesabı değişmiş. Önce oturum bağlantısını kaldırıp yeniden onaylayın."), {
+      throw Object.assign(new Error("Instagram hesabı değişmiş. Önce oturum bağlantısını kaldırıp yeniden bağlayın."), {
         status: 409,
       });
     }
@@ -577,12 +567,20 @@ async function handleInstagramRequest(request, response) {
     throw Object.assign(new Error("Instagram yanıtı işlenemeyecek kadar büyük."), { status: 502 });
   }
   let redirectType = "";
+  let redirectHost = "";
+  let redirectPath = "";
   if (upstream.status >= 300 && upstream.status < 400) {
     try {
       const redirectUrl = new URL(upstream.headers.get("location") || "", normalized.url);
       const isInstagramHost =
         redirectUrl.hostname === "instagram.com" ||
         redirectUrl.hostname.endsWith(".instagram.com");
+      if (!isInstagramHost) {
+        redirectType = "external";
+      } else {
+        redirectHost = redirectUrl.hostname.slice(0, 253);
+        redirectPath = redirectUrl.pathname.slice(0, 256);
+      }
       if (isInstagramHost && /^\/accounts\/login(?:\/|$)/i.test(redirectUrl.pathname)) {
         redirectType = "login";
       } else if (
@@ -601,6 +599,7 @@ async function handleInstagramRequest(request, response) {
     contentType: String(upstream.headers.get("content-type") || "").slice(0, 160),
     retryAfter: String(upstream.headers.get("retry-after") || "").slice(0, 80),
     ...(redirectType ? { redirectType } : {}),
+    ...(redirectHost ? { redirectHost, redirectPath } : {}),
     text,
   });
 }

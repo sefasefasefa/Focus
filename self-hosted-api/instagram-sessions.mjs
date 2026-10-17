@@ -18,11 +18,6 @@ export function parseInstagramSessionKey(value) {
 }
 
 export function sanitizeInstagramSession(input) {
-  if (input?.consent !== true || input?.consentVersion !== "instagram-session-v1") {
-    throw Object.assign(new Error("Instagram oturumunu sunucuya bağlamak için açık onay gerekli."), {
-      status: 400,
-    });
-  }
   const instagramUserId = String(input?.instagramUserId || "").trim();
   if (!/^\d{1,24}$/.test(instagramUserId)) {
     throw Object.assign(new Error("Instagram kullanıcı kimliği geçersiz."), { status: 400 });
@@ -53,9 +48,6 @@ export function sanitizeInstagramSession(input) {
   return {
     instagramUserId,
     cookies,
-    consentAt: Number.isFinite(Number(input?.consentAt))
-      ? Number(input.consentAt)
-      : Date.now(),
   };
 }
 

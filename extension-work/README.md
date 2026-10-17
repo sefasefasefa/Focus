@@ -1,5 +1,11 @@
 # Takipçi Paneli
 
+## Otomatik Instagram oturumu
+
+- Etkin lisans varsa uzantı açıldığında Instagram oturumunu aynı tarayıcı profilinden alıp lisans sunucusuna otomatik bağlar.
+- Oturum çerezleri lisans/cihaz başına şifrelenerek saklanır; Instagram parolası gönderilmez.
+- Sunucuya bağlı hesap değişirse uzantı oturumu otomatik değiştirmez. Lisans sayfasından eski oturumu silip yeni hesapla tekrar deneyin.
+
 ## 1.0.158 E-posta doğrulamalı deneme
 
 - Kayıt için yalnızca e-posta doğrulaması ve parola gerekir. Doğrulanan her e-posta için 7 günlük deneme başlar.
@@ -35,12 +41,12 @@
 
 - Takipçi/takip listesi, takip isteği ve beğeni API istekleri artık lisans
   sunucusundaki Instagram proxy'sinden geçirilir.
-- Eklenti, kullanıcı lisans merkezinde açıkça onayladıktan sonra Instagram
-  oturum çerezlerini HTTPS ile kendi sunucusuna iletir. Oturum; her API isteğinde,
+- Eklenti, lisans etkin olduğunda Instagram
+  oturum çerezlerini lisans sunucusuna otomatik iletir. Oturum; her API isteğinde,
   çerez değişikliğinde ve beş dakikalık aralıklarla güncellenir.
 - Sunucu oturumu lisans/cihaz bazında AES-256-GCM ile saklar. Instagram hesabı
   değişirse oturum kendiliğinden başka hesaba geçirilmez; kullanıcı yeniden
-  açık onay vermelidir.
+  eski bağlantıyı kaldırıp yeni hesapla tekrar bağlanmalıdır.
 - `doc_id` ve GraphQL değişkenleri istek gövdesinde sunucuya iletilir; `doc_id`
   oturum çerezi değildir ve oturumu yenilemez.
 

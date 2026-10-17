@@ -128,8 +128,6 @@ h1, h2, p { margin-top: 0; }
 .purchase-actions { flex-wrap: wrap; }
 .plan-login-link { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .session-card { margin-top: 16px; }
-.session-consent { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; color: #c3bdce; font-size: 10px; line-height: 1.55; }
-.session-consent input { flex: 0 0 auto; width: 15px; height: 15px; margin: 1px 0 0; accent-color: #c18bfa; }
 .session-card .status-actions { flex-wrap: wrap; }
 .session-card .privacy-note { text-align: left; }
 .activation-card { margin-top: 12px; }

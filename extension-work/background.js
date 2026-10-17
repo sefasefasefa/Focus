@@ -58,7 +58,7 @@ const LICENSE_STATE_KEY = 'tpLicenseState';
 const LICENSE_API_URL_KEY = 'tpLicenseApiBaseUrl';
 const LICENSE_DEVICE_ID_KEY = 'tpLicenseDeviceId';
 const ACCOUNT_STATE_KEY = 'tpAccountState';
-const INSTAGRAM_SESSION_CONSENT_KEY = 'tpInstagramSessionConsent';
+const INSTAGRAM_SESSION_AUTO_LINK_DISABLED_KEY = 'tpInstagramSessionAutoLinkDisabled';
 const INSTAGRAM_SESSION_SYNC_ALARM = 'tp-instagram-session-sync';
 const LICENSE_VALIDATION_CACHE_MS = 30 * 1000;
 // Keep one compact summary for a whole browser activity burst. A short
@@ -465,46 +465,72 @@ async function getInstagramSessionStatus() {
   return payload;
 }
 
-async function linkInstagramSession() {
+let instagramSessionLinkPromise = null;
+
+function linkInstagramSession(force = true) {
+  if (instagramSessionLinkPromise) return instagramSessionLinkPromise;
+  const pending = linkInstagramSessionOnce(force);
+  instagramSessionLinkPromise = pending;
+  return pending.finally(() => {
+    if (instagramSessionLinkPromise === pending) instagramSessionLinkPromise = null;
+  });
+}
+
+async function linkInstagramSessionOnce(force) {
+  const preferences = await getLicenseStorage([INSTAGRAM_SESSION_AUTO_LINK_DISABLED_KEY]);
+  if (!force && preferences[INSTAGRAM_SESSION_AUTO_LINK_DISABLED_KEY] === true) {
+    return { ok: true, linked: false, skipped: true, reason: 'user-unlinked' };
+  }
+  if (force) {
+    await chrome.storage.local.remove(INSTAGRAM_SESSION_AUTO_LINK_DISABLED_KEY);
+  }
   const license = await requireActiveLicense();
   const session = await readCurrentInstagramSession();
-  const { response, payload } = await postLicenseApi(
+  const { response: statusResponse, payload: status } = await licenseApiRequest(
     license.apiBaseUrl,
     '/api/instagram/session',
-    {
-      ...session,
-      consent: true,
-      consentVersion: 'instagram-session-v1',
-    },
+    'GET',
+    undefined,
+    license.accessToken,
+  );
+  if (!statusResponse.ok || status?.ok !== true) {
+    throw new Error(String(status?.error || 'Instagram oturum durumu alınamadı.'));
+  }
+  if (
+    status.linked === true &&
+    String(status.instagramUserId || '') !== session.instagramUserId
+  ) {
+    throw new Error('Instagram hesabı değişmiş. Önce lisans sayfasından sunucudaki eski oturumu silin.');
+  }
+  const method = status.linked === true ? 'PATCH' : 'POST';
+  const { response, payload } = await licenseApiRequest(
+    license.apiBaseUrl,
+    '/api/instagram/session',
+    method,
+    session,
     license.accessToken,
   );
   if (!response.ok || payload?.ok !== true || payload?.linked !== true) {
     throw new Error(String(payload?.error || 'Instagram oturumu bağlanamadı.'));
   }
-  await setLicenseStorage({ [INSTAGRAM_SESSION_CONSENT_KEY]: true });
+  await chrome.storage.local.remove('tpInstagramSessionConsent');
   chrome.alarms?.create(INSTAGRAM_SESSION_SYNC_ALARM, { periodInMinutes: 5 });
   return payload;
 }
 
 async function syncInstagramSessionSnapshot() {
-  const stored = await getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY]);
-  if (stored[INSTAGRAM_SESSION_CONSENT_KEY] !== true) return { ok: false, skipped: true };
-  const license = await requireActiveLicense();
-  const session = await readCurrentInstagramSession();
-  const { response, payload } = await licenseApiRequest(
-    license.apiBaseUrl,
-    '/api/instagram/session',
-    'PATCH',
-    session,
-    license.accessToken,
-  );
-  if (!response.ok || payload?.ok !== true || payload?.linked !== true) {
-    throw new Error(String(payload?.error || 'Instagram oturumu güncellenemedi.'));
+  try {
+    return await linkInstagramSession(false);
+  } catch (error) {
+    if (/Instagram oturumu bulunamadı/i.test(String(error?.message || error))) {
+      await unlinkInstagramSession(false).catch(() => {});
+      return { ok: true, linked: false, skipped: true };
+    }
+    throw error;
   }
-  return payload;
 }
 
-async function unlinkInstagramSession() {
+async function unlinkInstagramSession(pauseAutoLink = true) {
   const license = await requireActiveLicense();
   const { response, payload } = await licenseApiRequest(
     license.apiBaseUrl,
@@ -516,7 +542,9 @@ async function unlinkInstagramSession() {
   if (!response.ok || payload?.ok !== true) {
     throw new Error(String(payload?.error || 'Instagram oturumu kaldırılamadı.'));
   }
-  await chrome.storage.local.remove(INSTAGRAM_SESSION_CONSENT_KEY);
+  if (pauseAutoLink) {
+    await setLicenseStorage({ [INSTAGRAM_SESSION_AUTO_LINK_DISABLED_KEY]: true });
+  }
   chrome.alarms?.clear(INSTAGRAM_SESSION_SYNC_ALARM);
   return payload;
 }
@@ -540,12 +568,8 @@ function serializeInstagramRequestBody(body) {
 }
 
 async function instagramServerRequest(endpoint, params, method = 'GET', body, headers = {}) {
-  const consent = await getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY]);
-  if (consent[INSTAGRAM_SESSION_CONSENT_KEY] !== true) {
-    throw new Error('Instagram işlemleri için lisans sayfasından sunucu oturumuna açık onay verin.');
-  }
-  const session = await readCurrentInstagramSession();
   let license = await requireActiveLicense();
+  const session = await readCurrentInstagramSession();
   const requestBody = {
     endpoint,
     params: params || {},
@@ -572,6 +596,20 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
       32_000,
     );
   }
+  if (
+    result.response.status === 409 &&
+    /Instagram oturumu sunucuya bağlanmamış/i.test(String(result.payload?.error || ''))
+  ) {
+    await linkInstagramSession();
+    license = await requireActiveLicense();
+    result = await postLicenseApi(
+      license.apiBaseUrl,
+      '/api/instagram/request',
+      requestBody,
+      license.accessToken,
+      32_000,
+    );
+  }
   if (!result.response.ok) {
     throw new Error(String(result.payload?.error || 'Instagram API sunucusuna ulaşılamadı.'));
   }
@@ -579,17 +617,25 @@ async function instagramServerRequest(endpoint, params, method = 'GET', body, he
   const responseText = String(result.payload?.text || '').replace(/^for\s*\(;;\);\s*/, '');
   if (result.payload?.ok !== true) {
     const redirectType = String(result.payload?.redirectType || '');
-    const message = redirectType === 'login'
-      ? 'Instagram isteği giriş sayfasına yönlendirdi. Aynı tarayıcı profilinde Instagram’a giriş yapın; ardından lisans merkezinde sunucudaki oturumu silip yeniden bağlayın.'
-      : redirectType === 'verification'
-        ? 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayın; ardından lisans merkezinde sunucudaki oturumu silip yeniden bağlayın.'
-        : /login_required|checkpoint_required/i.test(responseText)
-          ? 'Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.'
-          : upstreamStatus >= 300 && upstreamStatus < 400
-            ? `Instagram isteği başka bir adrese yönlendirdi (HTTP ${upstreamStatus}). Oturum ve istek yolunu kontrol edin.`
-            : upstreamStatus === 429
-              ? 'Instagram istek sınırı uyguladı. Bir süre bekleyip tekrar deneyin.'
-              : `Instagram isteği başarısız oldu (HTTP ${upstreamStatus || 'bilinmiyor'}).`;
+    let message;
+    if (redirectType === 'login') {
+      message = 'Instagram isteği giriş sayfasına yönlendirdi. Aynı tarayıcı profilinde Instagram’a giriş yapın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
+    } else if (redirectType === 'verification') {
+      message = 'Instagram ek doğrulama istedi. Tarayıcıda doğrulamayı tamamlayın; ardından lisans merkezinde sunucudaki oturumu silip yeniden deneyin.';
+    } else if (redirectType === 'external') {
+      message = 'Instagram isteği Instagram dışındaki bir adrese yönlendirildi. Güvenlik için yönlendirme takip edilmedi.';
+    } else if (/login_required|checkpoint_required/i.test(responseText)) {
+      message = 'Instagram oturumu geçersiz veya doğrulama istiyor. Instagram’a giriş yaptıktan sonra tekrar deneyin.';
+    } else if (upstreamStatus >= 300 && upstreamStatus < 400) {
+      const target = result.payload?.redirectHost
+        ? `; hedef: ${String(result.payload.redirectHost)}${String(result.payload.redirectPath || '')}`
+        : '';
+      message = `Instagram isteği başka bir adrese yönlendirdi (HTTP ${upstreamStatus}${target}). Oturum ve istek yolunu kontrol edin.`;
+    } else if (upstreamStatus === 429) {
+      message = 'Instagram istek sınırı uyguladı. Bir süre bekleyip tekrar deneyin.';
+    } else {
+      message = `Instagram isteği başarısız oldu (HTTP ${upstreamStatus || 'bilinmiyor'}).`;
+    }
     const error = new Error(message);
     Object.assign(error, {
       status: upstreamStatus || result.response.status,
@@ -628,27 +674,16 @@ chrome.cookies?.onChanged.addListener(change => {
   if (!String(change?.cookie?.domain || '').includes('instagram.com')) return;
   clearTimeout(instagramSessionSyncTimer);
   instagramSessionSyncTimer = setTimeout(() => {
-    getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY])
-      .then(stored => {
-        if (stored[INSTAGRAM_SESSION_CONSENT_KEY] !== true) return;
-        syncInstagramSessionSnapshot().catch(error => {
-          if (/Instagram oturumu bulunamadı/i.test(String(error?.message || error))) {
-            unlinkInstagramSession().catch(() => {});
-          }
-        });
-      })
-      .catch(() => {});
+    syncInstagramSessionSnapshot().catch(() => {});
   }, 1200);
 });
 
 chrome.runtime?.onStartup.addListener(() => {
-  getLicenseStorage([INSTAGRAM_SESSION_CONSENT_KEY])
-    .then(stored => {
-      if (stored[INSTAGRAM_SESSION_CONSENT_KEY] === true) {
-        chrome.alarms?.create(INSTAGRAM_SESSION_SYNC_ALARM, { periodInMinutes: 5 });
-      }
-    })
-    .catch(() => {});
+  linkInstagramSession(false).catch(() => {});
+});
+
+chrome.runtime?.onInstalled.addListener(() => {
+  linkInstagramSession(false).catch(() => {});
 });
 
 async function classifyWithLicensedServer(input) {
@@ -8008,6 +8043,12 @@ function dispatchExtensionMessage(msg, _sender, reply) {
       .catch(error => reply({ ok: false, error: error?.message || String(error) }));
     return true;
   }
+  if (msg.type === 'INSTAGRAM_SESSION_AUTO_LINK') {
+    linkInstagramSession(false)
+      .then(reply)
+      .catch(error => reply({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
   if (msg.type === 'INSTAGRAM_SESSION_UNLINK') {
     unlinkInstagramSession()
       .then(reply)
@@ -9313,6 +9354,7 @@ const LICENSE_REQUIRED_EXTENSION_MESSAGES = new Set([
   'DOM_LIKE_STORY',
   'INSTAGRAM_SESSION_STATUS',
   'INSTAGRAM_SESSION_LINK',
+  'INSTAGRAM_SESSION_AUTO_LINK',
   'INSTAGRAM_SESSION_UNLINK',
   'GENDER_CLASSIFY',
   'GENDER_REANALYZE_UNKNOWN',

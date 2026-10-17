@@ -17,7 +17,6 @@
     sessionPanel: document.getElementById("instagram-session-status"),
     sessionLabel: document.getElementById("instagram-session-label"),
     sessionDetail: document.getElementById("instagram-session-detail"),
-    sessionConsent: document.getElementById("instagram-session-consent"),
     sessionLinkButton: document.getElementById("instagram-session-link"),
     sessionUnlinkButton: document.getElementById("instagram-session-unlink"),
     sessionFeedback: document.getElementById("instagram-session-feedback"),
@@ -84,8 +83,7 @@
       purchaseBusy || !runtimeAvailable || !accountSession ||
       Number(accountSession.sessionExpiresAt) <= Date.now();
     elements.sessionLinkButton.disabled =
-      sessionBusy || !runtimeAvailable || !licenseActive ||
-      !elements.sessionConsent.checked || sessionLinked;
+      sessionBusy || !runtimeAvailable || !licenseActive || sessionLinked;
     elements.sessionUnlinkButton.disabled =
       sessionBusy || !runtimeAvailable || !licenseActive || !sessionLinked;
     elements.refreshStatus.setAttribute("aria-busy", String(statusBusy));
@@ -384,19 +382,36 @@
       return;
     }
     try {
-      const result = await sendMessage({ type: "INSTAGRAM_SESSION_STATUS" });
+      const result = await sendMessage({ type: "INSTAGRAM_SESSION_AUTO_LINK" });
       if (!result || result.ok !== true) {
+        if (/Instagram oturumu bulunamadı/i.test(String(result?.error || ""))) {
+          sessionLinked = false;
+          setInstagramSessionStatus(
+            "Instagram girişi bekleniyor",
+            "Instagram’a giriş yaptığında uzantı oturumunu otomatik bağlayacak.",
+            "inactive",
+          );
+          return;
+        }
         throw new Error(typeof result?.error === "string" ? result.error : "Oturum durumu alınamadı.");
       }
       sessionLinked = result.linked === true;
+      if (result.reason === "user-unlinked") {
+        setInstagramSessionStatus(
+          "Instagram oturumu bağlı değil",
+          "Otomatik bağlantı durduruldu. Yeniden bağlamak için aşağıdaki düğmeye bas.",
+          "inactive",
+        );
+        return;
+      }
       if (sessionLinked) {
         setInstagramSessionStatus(
           "Instagram oturumu bağlı",
-          `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Oturum, isteklerle güncel tutulur.`,
+          `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Oturum otomatik güncellenir.`,
           "active",
         );
       } else {
-        setInstagramSessionStatus("Instagram oturumu bağlı değil", "Instagram’da giriş yaptıktan sonra aşağıdaki onayla bağla.", "inactive");
+        setInstagramSessionStatus("Instagram oturumu bağlı değil", "Instagram’a giriş yaptığında uzantı oturumunu otomatik bağlayacak.", "inactive");
       }
     } catch (error) {
       sessionLinked = false;
@@ -407,10 +422,10 @@
   }
 
   async function linkInstagramSession() {
-    if (sessionBusy || !elements.sessionConsent.checked) return;
+    if (sessionBusy) return;
     sessionBusy = true;
     setInstagramSessionFeedback("");
-    setInstagramSessionStatus("Oturum bağlanıyor", "Güncel oturum bilgileri güvenli bağlantıyla sunucuya gönderiliyor.", "loading");
+    setInstagramSessionStatus("Oturum bağlanıyor", "Güncel Instagram oturumu sunucuya gönderiliyor.", "loading");
     renderBusy();
     try {
       const apiBaseUrl = getApiBaseUrl();
@@ -421,11 +436,10 @@
         throw new Error(typeof result?.error === "string" ? result.error : "Instagram oturumu bağlanamadı.");
       }
       sessionLinked = true;
-      elements.sessionConsent.checked = false;
-      setInstagramSessionFeedback("Onay kaydedildi; oturum sunucuya bağlandı.", "success");
+      setInstagramSessionFeedback("Instagram oturumu sunucuya bağlandı.", "success");
       setInstagramSessionStatus(
         "Instagram oturumu bağlı",
-        `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Güncel oturum eklentiden düzenli aktarılır.`,
+        `Hesap kimliği: ${result.instagramUserId || "sunucuda kayıtlı"}. Oturum otomatik güncellenir.`,
         "active",
       );
     } catch (error) {
@@ -630,7 +644,6 @@
   elements.refreshPlans.addEventListener("click", () => refreshPlans(true));
   elements.openAccountButton.addEventListener("click", openAccountPage);
   elements.checkPurchaseButton.addEventListener("click", checkPurchase);
-  elements.sessionConsent.addEventListener("change", renderBusy);
   elements.sessionLinkButton.addEventListener("click", linkInstagramSession);
   elements.sessionUnlinkButton.addEventListener("click", unlinkInstagramSession);
 
