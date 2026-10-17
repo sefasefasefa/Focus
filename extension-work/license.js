@@ -152,9 +152,6 @@
       return null;
     }
     const apiBaseUrl = validateApiUrl(accountSession.apiBaseUrl || licenseApiBaseUrl);
-    if (!SESSION_DEVICE_ID_PATTERN.test(String(accountSession.deviceId || ""))) {
-      throw new Error("Hesap oturumu eksik; e-posta ve parolanla yeniden giriş yap.");
-    }
     await ensureServerPermission(apiBaseUrl, requestPermission);
     await saveUrl(apiBaseUrl);
     const response = await fetch(`${apiBaseUrl}/api/account/license/refresh`, {
@@ -174,14 +171,22 @@
     }
     licenseApiBaseUrl = apiBaseUrl;
     accountSession.apiBaseUrl = apiBaseUrl;
+    const sessionDeviceId = String(
+      result.deviceId || accountSession.deviceId || result.license?.deviceId || "",
+    );
+    if (!SESSION_DEVICE_ID_PATTERN.test(sessionDeviceId)) {
+      throw new Error("Hesap oturumu yenilenemedi.");
+    }
+    accountSession.deviceId = sessionDeviceId;
     const license = result.license;
     if (license?.accessToken) {
       await new Promise((resolve, reject) => {
         chrome.storage.local.set({
           tpLicenseApiBaseUrl: apiBaseUrl,
+          tpLicenseDeviceId: sessionDeviceId,
           tpLicenseState: {
             apiBaseUrl,
-            deviceId: accountSession.deviceId || license.deviceId || "",
+            deviceId: sessionDeviceId,
             accessToken: license.accessToken,
             refreshToken: String(license.refreshToken || ""),
             tokenExpiresAt: Number(license.tokenExpiresAt) || Date.now() + 9 * 60 * 1000,

@@ -697,7 +697,7 @@ async function handleShopierWebhook(request, response) {
   }
   const result = recordPaidOrder(db, {
     orderId, productId: product.productId, emailHash: emailDigest(email),
-    paidAt, days: product.days, deviceLimit: DEFAULT_MAX_DEVICES,
+    paidAt, days: product.days, deviceLimit: 0,
   });
   return writeJson(response, 200, { ok: true, received: true, ...result });
 }

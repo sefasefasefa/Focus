@@ -473,6 +473,7 @@ export function createAccountHandlers({
     const license = order ? issueLicense(order, session.device_id) : null;
     return writeJson(response, 200, {
       ok: true,
+      deviceId: session.device_id,
       license,
       subscriptions: listSubscriptions(session.email_hash),
     });

@@ -82,7 +82,7 @@ function validateManifest(manifest) {
 
 function shouldSkip(relativePath, entryName) {
   const parts = relativePath.split(sep);
-  if (parts.some(part => part === "native-companion" || part === "_metadata")) return true;
+  if (parts.some(part => part === "_metadata")) return true;
   if (entryName === "README.md" || entryName === "RELEASE.md" || entryName === "kur.bat") return true;
   if (
     entryName === ".DS_Store" ||

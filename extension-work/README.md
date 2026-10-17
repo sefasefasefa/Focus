@@ -3,7 +3,7 @@
 ## 1.0.158 E-posta doğrulamalı deneme
 
 - Kayıt için yalnızca e-posta doğrulaması ve parola gerekir. Doğrulanan her e-posta için 7 günlük deneme başlar.
-- Deneme uygunluğu cihaz kimliğine veya MAC adresine bağlanmaz; MAC adresi okunmaz, gönderilmez veya saklanmaz.
+- Deneme uygunluğu cihaz kimliğine bağlanmaz; uzantı donanım kimliği okumaz.
 - Kayıtlı mevcut oturumlar korunur. Oturumları sürdürmek için uzantı içinde rastgele bir oturum kimliği kullanılır; donanım kimliği okunmaz.
 
 ## 1.0.154 E-posta/parola hesabı ve ayrı aylık satın alma sayfası

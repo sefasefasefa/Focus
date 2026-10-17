@@ -9,6 +9,7 @@
   const ACCOUNT_KEY = "tpAccountState";
   const LICENSE_KEY = "tpLicenseState";
   const SESSION_DEVICE_ID_PATTERN = /^[a-zA-Z0-9_-]{16,128}$/;
+  const LEGACY_OS_DEVICE_ID_PATTERN = /^rdn1_[a-f0-9]{64}$/;
   const api = {
     url: "",
     deviceId: "",
@@ -147,7 +148,8 @@
       stored[DEVICE_ID_KEY],
     ];
     const existing = candidates.find(value =>
-      SESSION_DEVICE_ID_PATTERN.test(String(value || "")),
+      SESSION_DEVICE_ID_PATTERN.test(String(value || "")) &&
+      !LEGACY_OS_DEVICE_ID_PATTERN.test(String(value || "")),
     );
     api.deviceId = existing
       ? String(existing)
@@ -656,6 +658,13 @@
         body: {},
         token: api.account.sessionToken,
       });
+      const sessionDeviceId = String(entitlement.deviceId || api.account.deviceId || "");
+      if (!SESSION_DEVICE_ID_PATTERN.test(sessionDeviceId)) {
+        throw new Error("Hesap oturumu yenilenemedi.");
+      }
+      api.account.deviceId = sessionDeviceId;
+      api.deviceId = sessionDeviceId;
+      await storageSet({ [DEVICE_ID_KEY]: sessionDeviceId });
       api.subscriptions = Array.isArray(entitlement.subscriptions)
         ? entitlement.subscriptions
         : api.subscriptions;
@@ -727,27 +736,6 @@
         api.busy = true;
         api.view = "login";
         render();
-        let currentDeviceId;
-        try {
-          currentDeviceId = await ensureDeviceId();
-        } catch (error) {
-          api.busy = false;
-          api.lastEmail = api.account.email;
-          render();
-          setMessage(error.message || "Hesap oturumu hazırlanamadı.", "error");
-          return;
-        }
-        if (api.account.deviceId !== currentDeviceId) {
-          api.lastEmail = api.account.email;
-          await storageRemove([ACCOUNT_KEY, LICENSE_KEY]);
-          api.account = null;
-          api.subscriptions = [];
-          api.view = "login";
-          api.busy = false;
-          render();
-          setMessage("Hesap oturumu bu uzantı kurulumuyla eşleşmiyor. E-posta ve parolanla yeniden giriş yap.", "info");
-          return;
-        }
         api.view = "home";
         render();
         await refreshSubscriptions();
