@@ -266,3 +266,31 @@ mtime_ms = 1792256591535
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:667b3f9f-57b5-4ff2-83bf-3b4173c2c2d9/6e87ede6-c08d-4357-ad86-688e202a5486/47cf0ed1-3def-4ee3-b6c9-b0812593ff0c"
 storage_version_token = "1792256600152630"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "CkEOZ-qGWgmzhfsKpK8TB"
+uri = "file://generated-artifacts/downloads/takipci-paneli-extension-v1.0.165.zip"
+type = "unspecified"
+title = "Takipçi Paneli Chrome uzantısı v1.0.165"
+description = "Güncellenmiş uzantı ZIP’i. Arşivi açıp klasörü Chrome uzantılar sayfasından yükleyin."
+logical_id = "01409eca-f854-4daf-b9f0-e9ca6e4ee41e"
+content_hash = "sha256:c5e50b3bc882ee144c8eadcb91e360170c95dabab112c90f568e3e9f0c7464c0"
+size = 409699
+mtime_ms = 1792258829324
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:587a6a38-0756-4de9-addf-ae4c1ce2fb88/01409eca-f854-4daf-b9f0-e9ca6e4ee41e/a586eff5-17a8-4f11-9023-2eb128e477e1"
+storage_version_token = "1792258837498638"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Dm6HfEnOUIHJuHnlnm78K"
+uri = "file://generated-artifacts/downloads/takipci-paneli-self-hosted-api-v1.0.165.zip"
+type = "unspecified"
+title = "Takipçi Paneli lisans API’si v1.0.165"
+description = "Güncellenmiş self-hosted API kaynakları. .env ve veritabanı içermez; sunucuda mevcut .env dosyanızı koruyun."
+logical_id = "e7fdd31a-8ebf-42d3-a2a4-2549a59467e3"
+content_hash = "sha256:53b7f630f87ab4273094a409461fc401687e99429abec8d5fad3e35f9ee893de"
+size = 27033
+mtime_ms = 1792258829332
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:587a6a38-0756-4de9-addf-ae4c1ce2fb88/e7fdd31a-8ebf-42d3-a2a4-2549a59467e3/5e73fe82-c788-42b3-93b5-196031e265a0"
+storage_version_token = "1792258838269701"
+content_type = "application/octet-stream"
