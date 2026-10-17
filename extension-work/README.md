@@ -1,5 +1,13 @@
 # Takipçi Paneli
 
+## 1.0.166 Profil GraphQL yedeği için güncel istek başlıkları
+
+- Profil yenileme yedeği sabit `x-ig-www-claim: 0` yerine mevcut tarayıcı
+  oturumundaki güncel claim değerini kullanır; değer bulunamazsa sahte bir
+  başlık göndermez.
+- Eski sabit `__spin` alanları kaldırıldı ve cihazın gerçek dokunma noktası
+  sayısı kullanılıyor.
+
 ## Tarayıcı oturumu ve API işlemleri
 
 - Instagram oturum bilgileri yalnızca uzantının çalıştığı tarayıcıdan okunur.

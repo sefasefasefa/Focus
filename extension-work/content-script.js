@@ -615,17 +615,25 @@ async function requestProfileGraphQL() {
         fb_api_caller_class: 'RelayModern',
         fb_api_req_friendly_name: 'PolarisProfilePageContentQuery',
       });
-      const json = await licensedInstagramRequest('/api/graphql', {}, 'POST', body.toString(), {
+      const headers = {
         'content-type': 'application/x-www-form-urlencoded',
         'x-asbd-id': '359341',
         'x-fb-dtsg': fbDtsg,
         'x-fb-lsd': lsd,
         'x-fb-friendly-name': 'PolarisProfilePageContentQuery',
         'x-ig-app-id': INSTAGRAM_APP_ID,
-        'x-ig-max-touch-points': '0',
-        'x-ig-www-claim': '0',
+        'x-ig-max-touch-points': String(navigator.maxTouchPoints || 0),
         'x-requested-with': 'XMLHttpRequest',
-      });
+      };
+      const wwwClaim = instagramWwwClaim();
+      if (wwwClaim) headers['x-ig-www-claim'] = wwwClaim;
+      const json = await licensedInstagramRequest(
+        '/api/graphql',
+        {},
+        'POST',
+        body.toString(),
+        headers,
+      );
       if (json.errors?.length) throw new Error(JSON.stringify(json.errors).slice(0, 200));
       return json;
     });

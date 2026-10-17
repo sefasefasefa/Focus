@@ -4141,6 +4141,27 @@ async function getUserViaGraphQL(tabId) {
 
       const csrf = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] ?? '';
       const jazoest = '2' + String(Array.from(fbDtsg).reduce((a, c) => a + c.charCodeAt(0), 0));
+      const readWwwClaim = () => {
+        try {
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const value = localStorage.getItem(localStorage.key(index) ?? '') ?? '';
+            if (value.startsWith('hmac.')) return value;
+          }
+        } catch {}
+        try {
+          for (const value of Object.values(win)) {
+            if (typeof value === 'string' && value.startsWith('hmac.')) return value;
+          }
+        } catch {}
+        try {
+          for (const script of win.document?.querySelectorAll?.('script:not([src])') ?? []) {
+            const match = (script.textContent ?? '').match(/hmac\.[A-Za-z0-9_\-+=/.]{20,}/);
+            if (match) return match[0];
+          }
+        } catch {}
+        return '';
+      };
+      const wwwClaim = readWwwClaim();
 
       const doGql = async (docId, variables, actorId = '0', friendlyName = '') => {
         // A single profile refresh can require two GraphQL calls. Keep the
@@ -4149,7 +4170,7 @@ async function getUserViaGraphQL(tabId) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const body = new URLSearchParams({
           av: actorId, __d: 'www', __user: '0', __a: '1', __req: 'g',
-          __comet_req: '7', __spin_b: 'trunk', __spin_r: '1043716065', __spin_t: '0',
+          __comet_req: '7',
           fb_dtsg: fbDtsg, jazoest, lsd,
           variables: JSON.stringify(variables),
           doc_id: docId,
@@ -4157,23 +4178,24 @@ async function getUserViaGraphQL(tabId) {
           fb_api_caller_class: 'RelayModern',
         });
         if (friendlyName) body.set('fb_api_req_friendly_name', friendlyName);
+        const headers = {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-asbd-id': '359341',
+          'x-fb-dtsg': fbDtsg,
+          'x-fb-friendly-name': friendlyName || 'PolarisProfilePageContentQuery',
+          'x-fb-lsd': lsd,
+          'x-ig-app-id': '936619743392459',
+          'x-ig-max-touch-points': String(win.navigator?.maxTouchPoints || 0),
+          'x-requested-with': 'XMLHttpRequest',
+        };
+        if (wwwClaim) headers['x-ig-www-claim'] = wwwClaim;
         const proxyResponse = await chrome.runtime.sendMessage({
           type: 'LICENSED_INSTAGRAM_REQUEST',
           endpoint: '/api/graphql',
           params: {},
           method: 'POST',
           body: body.toString(),
-          headers: {
-            'content-type': 'application/x-www-form-urlencoded',
-            'x-asbd-id': '359341',
-            'x-fb-dtsg': fbDtsg,
-            'x-fb-friendly-name': friendlyName || 'PolarisProfilePageContentQuery',
-            'x-fb-lsd': lsd,
-            'x-ig-app-id': '936619743392459',
-            'x-ig-max-touch-points': '1',
-            'x-ig-www-claim': '0',
-            'x-requested-with': 'XMLHttpRequest',
-          },
+          headers,
         });
         if (!proxyResponse?.ok) {
           throw new Error(proxyResponse?.error || 'Lisanslı Instagram isteği başarısız oldu.');
